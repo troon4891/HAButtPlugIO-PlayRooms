@@ -1,10 +1,5 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [1.0.0] - 2026-02-21
 
 ### Added
@@ -24,3 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Host dashboard for room management and device assignment
 - Guest lobby with name entry and challenge verification
 - Responsive mobile-first design for guest PWA experience
+
+---
+
+## Version Control Notes
+All notable changes to this project will be documented in this file.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+> Reference for maintaining consistent version bumps across the project.
+
+### Versioning scheme
+
+- **X.0.0** — Major version (architecture changes, breaking changes)
+- **X.X.0** — Minor version (new functionality)
+- **X.0.X** — Patch version (bug fixes, security fixes, cleanup)
+- **X.0.X.X** — Patch Minor version (bug fixes, security fixes, cleanup)
