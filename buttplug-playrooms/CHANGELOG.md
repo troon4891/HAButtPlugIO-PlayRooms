@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-02-21
+
+### Fixed
+- Fixed Docker build failure caused by changed Intiface Engine release asset naming
+  - Updated download URL from Rust-triple tar.gz format to new `x64-Release.zip` format
+  - Replaced `tar` extraction with `unzip` for the new zip archive format
+  - Pinned Intiface Engine to v1.4.8 for reproducible builds
+
+### Changed
+- Removed `aarch64` architecture support (no upstream Linux ARM builds available)
+- Added default value for `BUILD_FROM` ARG to fix `InvalidDefaultArgInFrom` Docker warning
+- Added `libc6-compat` for glibc binary compatibility on Alpine
+
 ## [1.0.1] - 2026-02-21
 
 ### Fixed

@@ -1,29 +1,27 @@
-ARG BUILD_FROM
+# Default allows local `docker build` without --build-arg; HA Supervisor always overrides
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.19
 FROM ${BUILD_FROM}
 
-ARG BUILD_ARCH
+# Pin intiface-engine version for reproducible builds
+ARG INTIFACE_ENGINE_VERSION=v1.4.8
 
-# Install Node.js 20 and build dependencies
+# Install Node.js and runtime dependencies
 RUN apk add --no-cache \
     nodejs \
     npm \
     wget \
+    unzip \
     bluez \
-    dbus
+    dbus \
+    libc6-compat
 
-# Download Intiface Engine for the target architecture
-RUN if [ "${BUILD_ARCH}" = "amd64" ]; then \
-      INTIFACE_ARCH="x86_64-unknown-linux-musl"; \
-    elif [ "${BUILD_ARCH}" = "aarch64" ]; then \
-      INTIFACE_ARCH="aarch64-unknown-linux-musl"; \
-    else \
-      echo "Unsupported architecture: ${BUILD_ARCH}" && exit 1; \
-    fi && \
-    wget -q -O /tmp/intiface-engine.tar.gz \
-      "https://github.com/intiface/intiface-engine/releases/latest/download/intiface-engine-linux-${INTIFACE_ARCH}.tar.gz" && \
-    tar -xzf /tmp/intiface-engine.tar.gz -C /usr/local/bin/ && \
+# Download and install Intiface Engine (amd64 only)
+RUN wget -q -O /tmp/intiface-engine.zip \
+      "https://github.com/intiface/intiface-engine/releases/download/${INTIFACE_ENGINE_VERSION}/intiface-engine-linux-x64-Release.zip" && \
+    unzip -o /tmp/intiface-engine.zip intiface-engine -d /usr/local/bin/ && \
     chmod +x /usr/local/bin/intiface-engine && \
-    rm /tmp/intiface-engine.tar.gz
+    rm /tmp/intiface-engine.zip && \
+    apk del unzip
 
 # Copy and build server
 COPY server/package.json server/package-lock.json* /app/server/
