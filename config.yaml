@@ -1,0 +1,27 @@
+name: "ButtPlug.io PlayRooms"
+version: "1.0.0"
+slug: "buttplug-playrooms"
+description: "Host Buttplug.io devices as Play Rooms with PWA access and Share Links"
+url: "https://github.com/troon4891/HAButtPlugIO-PlayRooms"
+arch:
+  - amd64
+  - aarch64
+init: false
+ingress: true
+ingress_port: 8099
+panel_icon: "mdi:gamepad-variant"
+panel_title: "PlayRooms"
+ports:
+  8099/tcp: null
+map:
+  - addon_config:rw
+hassio_api: true
+auth_api: true
+options:
+  intiface_port: 12345
+  server_port: 8099
+  scan_on_start: false
+schema:
+  intiface_port: "int(1024,65535)"
+  server_port: "int(1024,65535)"
+  scan_on_start: bool

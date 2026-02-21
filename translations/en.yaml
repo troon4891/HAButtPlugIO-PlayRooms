@@ -1,0 +1,10 @@
+configuration:
+  intiface_port:
+    name: Intiface Engine Port
+    description: WebSocket port for the Intiface Engine server
+  server_port:
+    name: Server Port
+    description: HTTP port for the PlayRooms web server
+  scan_on_start:
+    name: Scan on Start
+    description: Automatically scan for Buttplug.io devices when the add-on starts

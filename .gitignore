@@ -1,0 +1,30 @@
+node_modules/
+dist/
+*.js.map
+*.d.ts
+!vite.config.ts
+
+# Build artifacts
+server/dist/
+server/public/
+client/dist/
+
+# Environment
+.env
+.env.local
+
+# SQLite
+*.sqlite
+*.sqlite-journal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
