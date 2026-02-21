@@ -34,4 +34,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **X.0.0** — Major version (architecture changes, breaking changes)
 - **X.X.0** — Minor version (new functionality)
 - **X.0.X** — Patch version (bug fixes, security fixes, cleanup)
-- **X.0.X.X** — Patch Minor version (bug fixes, security fixes, cleanup)
