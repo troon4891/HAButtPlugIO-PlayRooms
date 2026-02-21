@@ -84,13 +84,3 @@ export interface ClientToServerEvents {
   "voice:ptt-start": () => void;
   "voice:ptt-end": () => void;
 }
-
-// RTCIceCandidateInit for server-side typing
-declare global {
-  interface RTCIceCandidateInit {
-    candidate: string;
-    sdpMid?: string | null;
-    sdpMLineIndex?: number | null;
-    usernameFragment?: string | null;
-  }
-}
