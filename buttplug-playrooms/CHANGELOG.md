@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated download URL from Rust-triple tar.gz format to new `x64-Release.zip` format
   - Replaced `tar` extraction with `unzip` for the new zip archive format
   - Pinned Intiface Engine to v1.4.8 for reproducible builds
+- Generated missing `package-lock.json` files for server and client (required by `npm ci`)
+- Updated deprecated npm flags (`--production=false` → default, `--production` → `--omit=dev`)
 
 ### Changed
 - Removed `aarch64` architecture support (no upstream Linux ARM builds available)

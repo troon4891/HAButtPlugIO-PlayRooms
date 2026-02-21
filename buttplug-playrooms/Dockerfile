@@ -24,17 +24,17 @@ RUN wget -q -O /tmp/intiface-engine.zip \
     apk del unzip
 
 # Copy and build server
-COPY server/package.json server/package-lock.json* /app/server/
+COPY server/package.json server/package-lock.json /app/server/
 WORKDIR /app/server
-RUN npm ci --production=false
+RUN npm ci
 
 COPY server/ /app/server/
 RUN npm run build
 
 # Copy and build client
-COPY client/package.json client/package-lock.json* /app/client/
+COPY client/package.json client/package-lock.json /app/client/
 WORKDIR /app/client
-RUN npm ci --production=false
+RUN npm ci
 
 COPY client/ /app/client/
 RUN npm run build
@@ -45,7 +45,7 @@ RUN mkdir -p /app/server/public && \
 
 # Clean up build dependencies
 WORKDIR /app/server
-RUN npm prune --production
+RUN npm prune --omit=dev
 
 COPY run.sh /
 RUN chmod +x /run.sh
