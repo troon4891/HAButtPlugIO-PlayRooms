@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Share2, Users, Copy, Check } from "lucide-react";
-import { rooms, share, devices as devicesApi, type Room, type ShareLink as ShareLinkType } from "../lib/api";
+import { rooms, share, type Room, type ShareLink as ShareLinkType } from "../lib/api";
 import { useSocket } from "../hooks/useSocket";
 import { useButtplug } from "../hooks/useButtplug";
 import ToyBox from "../components/widgets/ToyBox";

@@ -9,7 +9,7 @@ interface VideoChatProps {
 
 export default function VideoChat({ socket }: VideoChatProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
-  const { localStream, remoteStreams, startLocalStream, stopLocalStream } = useWebRTC(socket);
+  const { remoteStreams, startLocalStream, stopLocalStream } = useWebRTC(socket);
   const [joined, setJoined] = useState(false);
 
   async function handleJoin() {

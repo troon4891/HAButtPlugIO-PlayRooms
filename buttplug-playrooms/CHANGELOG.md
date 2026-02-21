@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-02-21
+
+### Fixed
+- Fixed client TypeScript build errors preventing Docker image creation
+  - Removed unused `localStream` destructuring in VideoChat and WebCam widgets
+  - Removed unused `devicesApi` import in RoomHost page
+  - Added `vite-env.d.ts` for CSS import type declarations (`noUncheckedSideEffectImports`)
+
 ## [1.0.3] - 2026-02-21
 
 ### Fixed

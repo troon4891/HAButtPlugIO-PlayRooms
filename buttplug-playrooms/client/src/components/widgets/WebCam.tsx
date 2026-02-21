@@ -10,7 +10,7 @@ interface WebCamProps {
 
 export default function WebCam({ socket, isHost = false }: WebCamProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { localStream, remoteStreams, startLocalStream, stopLocalStream } = useWebRTC(socket);
+  const { remoteStreams, startLocalStream, stopLocalStream } = useWebRTC(socket);
   const [streaming, setStreaming] = useState(false);
 
   // Host: start webcam and broadcast

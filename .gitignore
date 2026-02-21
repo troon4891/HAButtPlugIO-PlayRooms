@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.js.map
 *.d.ts
+!vite-env.d.ts
 !vite.config.ts
 
 # Build artifacts
