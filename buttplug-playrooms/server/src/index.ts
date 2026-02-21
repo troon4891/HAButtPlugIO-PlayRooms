@@ -116,7 +116,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     buttplug: isConnected(),
-    version: "1.0.5",
+    version: "1.0.6",
   });
 });
 
@@ -138,27 +138,31 @@ async function start(): Promise<void> {
   console.log("[PlayRooms] Running database migrations...");
   runMigrations();
 
+  let engineRunning = false;
   console.log("[PlayRooms] Starting Intiface Engine...");
   try {
     await startEngine();
     console.log("[PlayRooms] Intiface Engine started");
+    engineRunning = true;
   } catch (err) {
     console.warn("[PlayRooms] Intiface Engine failed to start:", (err as Error).message);
     console.warn("[PlayRooms] Continuing without device support...");
   }
 
-  console.log("[PlayRooms] Connecting Buttplug client...");
-  try {
-    await connectClient();
-    console.log("[PlayRooms] Buttplug client connected");
+  if (engineRunning) {
+    console.log("[PlayRooms] Connecting Buttplug client...");
+    try {
+      await connectClient();
+      console.log("[PlayRooms] Buttplug client connected");
 
-    if (config.scanOnStart) {
-      await startScanning();
-      console.log("[PlayRooms] Auto-scan started");
+      if (config.scanOnStart) {
+        await startScanning();
+        console.log("[PlayRooms] Auto-scan started");
+      }
+    } catch (err) {
+      console.warn("[PlayRooms] Buttplug client connection failed:", (err as Error).message);
+      console.warn("[PlayRooms] Device features will be unavailable until connected");
     }
-  } catch (err) {
-    console.warn("[PlayRooms] Buttplug client connection failed:", (err as Error).message);
-    console.warn("[PlayRooms] Device features will be unavailable until connected");
   }
 
   server.listen(config.serverPort, () => {

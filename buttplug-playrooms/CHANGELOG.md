@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-02-21
+
+### Fixed
+- Switched from Alpine to Debian base image to resolve glibc symbol errors
+  (`__mbstowcs_chk`, `__wcsncpy_chk`, `__res_init` not available in Alpine's gcompat)
+- Fixed unhandled WebSocket crash when intiface-engine fails to start
+  (skip client connection attempt when engine is not running)
+
+### Changed
+- Base image: `amd64-base:3.19` (Alpine) → `amd64-base-debian:bookworm` (Debian 12)
+- Package manager: `apk` → `apt-get`
+- Node.js: 20.x → 18.x (Debian bookworm default; fully compatible)
+
 ## [1.0.5] - 2026-02-21
 
 ### Fixed

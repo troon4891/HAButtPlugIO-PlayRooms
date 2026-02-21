@@ -1,20 +1,21 @@
 # Default allows local `docker build` without --build-arg; HA Supervisor always overrides
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.19
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
 FROM ${BUILD_FROM}
 
 # Pin intiface-engine version for reproducible builds
 ARG INTIFACE_ENGINE_VERSION=v1.4.8
 
 # Install Node.js and runtime dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \
     wget \
     unzip \
     bluez \
     dbus \
-    libc6-compat \
-    eudev-libs
+    libudev1 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Download and install Intiface Engine (amd64 only)
 RUN wget -q -O /tmp/intiface-engine.zip \
@@ -22,7 +23,7 @@ RUN wget -q -O /tmp/intiface-engine.zip \
     unzip -o /tmp/intiface-engine.zip intiface-engine -d /usr/local/bin/ && \
     chmod +x /usr/local/bin/intiface-engine && \
     rm /tmp/intiface-engine.zip && \
-    apk del unzip
+    apt-get purge -y unzip && apt-get autoremove -y
 
 # Copy and build server
 COPY server/package.json server/package-lock.json /app/server/
