@@ -13,7 +13,8 @@ RUN apk add --no-cache \
     unzip \
     bluez \
     dbus \
-    libc6-compat
+    libc6-compat \
+    eudev-libs
 
 # Download and install Intiface Engine (amd64 only)
 RUN wget -q -O /tmp/intiface-engine.zip \

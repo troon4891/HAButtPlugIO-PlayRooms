@@ -14,11 +14,10 @@ INTIFACE_PID=$!
 sleep 3
 
 if ! kill -0 "${INTIFACE_PID}" 2>/dev/null; then
-  bashio::log.error "Intiface Engine failed to start"
-  exit 1
+  bashio::log.warning "Intiface Engine failed to start — continuing without device support"
+else
+  bashio::log.info "Intiface Engine started (PID: ${INTIFACE_PID})"
 fi
-
-bashio::log.info "Intiface Engine started (PID: ${INTIFACE_PID})"
 bashio::log.info "Starting PlayRooms server on port ${SERVER_PORT}..."
 
 # Export configuration for Node.js server
