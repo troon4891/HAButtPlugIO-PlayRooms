@@ -1,8 +1,8 @@
 name: "ButtPlug.io PlayRooms"
-version: "1.0.0"
+version: "1.0.1"
 slug: "buttplug-playrooms"
 description: "Host Buttplug.io devices as Play Rooms with PWA access and Share Links"
-url: "https://github.com/troon4891/HAButtPlugIO-PlayRooms"
+url: "https://github.com/troon4891/HAButtPlugIO-PlayRooms/tree/main/buttplug-playrooms"
 arch:
   - amd64
   - aarch64
