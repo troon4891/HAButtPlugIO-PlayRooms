@@ -4,10 +4,11 @@ import RoomHost from "./pages/RoomHost";
 import RoomGuest from "./pages/RoomGuest";
 import Lobby from "./pages/Lobby";
 import Settings from "./pages/Settings";
+import { basePath } from "./lib/ingress";
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basePath}>
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/room/:id" element={<RoomHost />} />

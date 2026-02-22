@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link2, Copy, Check, Trash2 } from "lucide-react";
 import { share, type ShareLink as ShareLinkType } from "../../lib/api";
+import { basePath } from "../../lib/ingress";
 
 interface ShareLinkProps {
   roomId: string;
@@ -22,7 +23,7 @@ export default function ShareLink({ roomId, links, onLinksChange }: ShareLinkPro
   }
 
   async function handleCopy(token: string) {
-    const url = `${window.location.origin}/join/${token}`;
+    const url = `${window.location.origin}${basePath}/join/${token}`;
     await navigator.clipboard.writeText(url);
     setCopied(token);
     setTimeout(() => setCopied(null), 2000);
@@ -46,7 +47,7 @@ export default function ShareLink({ roomId, links, onLinksChange }: ShareLinkPro
           {links.map((link) => (
             <div key={link.id} className="flex items-center gap-2 bg-slate-700/50 rounded-lg px-3 py-2">
               <code className="flex-1 text-xs truncate text-slate-300">
-                {window.location.origin}/join/{link.token}
+                {window.location.origin}{basePath}/join/{link.token}
               </code>
               <button onClick={() => handleCopy(link.token)} className="text-primary-400 hover:text-primary-300 p-1">
                 {copied === link.token ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}

@@ -5,12 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-02-22
+
+### Fixed
+- Fixed blank page when loading through HA ingress
+  - Added server-side `<base>` tag and `__INGRESS_PATH__` injection from `X-Ingress-Path` header
+  - Set Vite `base: "./"` so built assets use relative paths
+  - Added `BrowserRouter basename` for correct client-side routing under ingress prefix
+  - Made API client, Socket.IO, and share link URLs ingress-aware via shared `ingress.ts` utility
+  - Direct port access (non-ingress) continues to work unchanged
+
+### Changed
+- Bumped version to 1.0.11 in `config.yaml` and health endpoint
+- Updated `config.yaml` URL from `tree/main` to `tree/beta`
+
 ## [1.0.10] - 2026-02-22
 
 ### Fixed
+- Additional apt clock skew fix
+  - Added `Acquire::Check-Date=false` for systems with forward clock drift
+
+## [1.0.9] - 2026-02-22
+
+### Fixed
 - Fixed `apt-get update` failure from clock skew on HA systems
-  - Added `Acquire::Check-Valid-Until=false` and `Acquire::Check-Date=false`
-  - Handles both "expired" and "not valid yet" repository metadata errors
+  - Added `Acquire::Check-Valid-Until=false` to apt configuration
 
 ## [1.0.8] - 2026-02-22
 

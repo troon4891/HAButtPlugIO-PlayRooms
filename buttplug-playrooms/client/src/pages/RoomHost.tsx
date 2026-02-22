@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Share2, Users, Copy, Check } from "lucide-react";
 import { rooms, share, type Room, type ShareLink as ShareLinkType } from "../lib/api";
+import { basePath } from "../lib/ingress";
 import { useSocket } from "../hooks/useSocket";
 import { useButtplug } from "../hooks/useButtplug";
 import ToyBox from "../components/widgets/ToyBox";
@@ -85,7 +86,7 @@ export default function RoomHost() {
   }
 
   function getShareUrl(token: string): string {
-    return `${window.location.origin}/join/${token}`;
+    return `${window.location.origin}${basePath}/join/${token}`;
   }
 
   async function copyShareLink(token: string) {

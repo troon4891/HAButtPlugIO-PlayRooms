@@ -97,6 +97,7 @@ The source code for all phases exists and compiles (TypeScript errors fixed in v
 | v1.0.8 | 2026-02-22 | Fix | Removed duplicate engine startup from `run.sh` (was started by both shell and Node.js) |
 | v1.0.9 | 2026-02-22 | Fix | Fixed `apt-get update` clock skew failures on HA systems |
 | v1.0.10 | 2026-02-22 | Fix | Additional apt clock skew fix (`Check-Date=false`) |
+| v1.0.11 | 2026-02-22 | Fix | Fixed blank page under HA ingress (server-side base injection, relative asset paths, ingress-aware routing/API/socket) |
 
 ---
 

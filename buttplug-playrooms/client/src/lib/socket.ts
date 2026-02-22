@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { basePath } from "./ingress";
 
 let socket: Socket | null = null;
 
@@ -15,6 +16,7 @@ export function connectSocket(options: ConnectOptions): Socket {
   }
 
   socket = io(window.location.origin, {
+    path: basePath + "/socket.io",
     query: {
       roomId: options.roomId,
       isHost: options.isHost ? "true" : "false",

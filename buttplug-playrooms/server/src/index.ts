@@ -4,7 +4,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 
 import { config } from "./config.js";
 import { runMigrations } from "./db/migrate.js";
@@ -30,10 +30,10 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
 app.use(cors());
 app.use(express.json());
 
-// Serve static PWA files
+// Serve static PWA files (index: false so index.html goes through ingress injection)
 const publicDir = join(__dirname, "..", "public");
 if (existsSync(publicDir)) {
-  app.use(express.static(publicDir));
+  app.use(express.static(publicDir, { index: false }));
 }
 
 // --- Host API routes (require HA ingress auth) ---
@@ -116,18 +116,28 @@ app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     buttplug: isConnected(),
-    version: "1.0.10",
+    version: "1.0.11",
   });
 });
 
-// SPA fallback — serve index.html for client-side routing
-app.get("*", (_req, res) => {
+// SPA fallback — serve index.html with HA ingress path injection
+let indexHtml: string | null = null;
+
+app.get("*", (req, res) => {
   const indexPath = join(publicDir, "index.html");
-  if (existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(200).json({ message: "PlayRooms server running. Frontend not built yet." });
+  if (!indexHtml) {
+    if (!existsSync(indexPath)) {
+      res.status(200).json({ message: "PlayRooms server running. Frontend not built yet." });
+      return;
+    }
+    indexHtml = readFileSync(indexPath, "utf-8");
   }
+  const ingressPath = (req.headers["x-ingress-path"] as string) || "";
+  const baseHref = ingressPath ? ingressPath + "/" : "/";
+  const html = indexHtml!
+    .replace('<base href="/"', `<base href="${baseHref}"`)
+    .replace('window.__INGRESS_PATH__ = ""', `window.__INGRESS_PATH__ = "${ingressPath}"`);
+  res.type("html").send(html);
 });
 
 // Setup Socket.IO room handling
