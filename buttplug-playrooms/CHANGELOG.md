@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2026-02-22
+
+### Fixed
+- Removed duplicate Intiface Engine startup from `run.sh`
+  - Engine was started by both `run.sh` (shell) and `engine.ts` (Node.js), causing
+    `AddrInUse` on port 12345 for the second instance
+  - Engine lifecycle is now managed exclusively by the Node.js server via `engine.ts`
+  - `run.sh` simplified to only export config and start the Node.js server
+
 ## [1.0.7] - 2026-02-22
 
 ### Fixed
