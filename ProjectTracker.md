@@ -1,8 +1,5 @@
 # HAButtPlugIO-PlayRooms — Project Tracker
 
-> **Current Version: v1.0.10** | **Branch: claude/continue-session-ruu2b** | **Updated: 2026-02-22**
-
----
 
 ## Implementation Phases
 
