@@ -4,11 +4,9 @@ Hosts create customizable rooms with widgets (Toy Box, Web Cam, Video Chat, Voic
 
 ---
 
-## Project Vision & Component Definitions
-
 ### Project Aim
 
-The aim of this project is to create an add-on for the Home Assistant platform that will host a Buttplug.io instance. This will allow users to connect their toys and expose them as Play Rooms to both the Home Assistant AI and a PWA for external access via Share Links.
+The aim of this project is to create an add-on for the Home Assistant platform that will host a Buttplug.io instance. This will allow users to connect their toys and expose them inside Play Rooms to both the Home Assistant AI and a PWA for external access via Share Links.
 
 The Progressive Web App (PWA) will provide a web-based dashboard for sharing and managing these devices through shareable links.
 

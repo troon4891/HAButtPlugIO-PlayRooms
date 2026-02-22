@@ -1,4 +1,6 @@
-const BASE_URL = "/api";
+import { apiBase } from "./ingress";
+
+const BASE_URL = apiBase;
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
