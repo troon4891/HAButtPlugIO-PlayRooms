@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.12] - 2026-02-22
 
 ### Added
-- Apache License 2.0 (`LICENSE` at repo root)
+- MIT License (`LICENSE` at repo root)
 - Security policy (`SECURITY.md` at repo root) covering vulnerability reporting
   via GitHub private security advisories, in-scope categories (device control,
   Share Link access, authentication, data privacy, infrastructure), supported
