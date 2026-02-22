@@ -116,7 +116,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     buttplug: isConnected(),
-    version: "1.0.6",
+    version: "1.0.7",
   });
 });
 

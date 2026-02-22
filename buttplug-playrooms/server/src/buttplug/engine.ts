@@ -11,8 +11,7 @@ export function startEngine(): Promise<void> {
     }
 
     const args = [
-      "--wsinsecureport", String(config.intifacePort),
-      "--stayopen",
+      "--websocket-port", String(config.intifacePort),
     ];
 
     console.log(`[Engine] Starting Intiface Engine on port ${config.intifacePort}`);

@@ -7,7 +7,7 @@ SCAN_ON_START=$(bashio::config 'scan_on_start')
 bashio::log.info "Starting Intiface Engine on port ${INTIFACE_PORT}..."
 
 # Start Intiface Engine in background
-intiface-engine --wsinsecureport "${INTIFACE_PORT}" --stayopen &
+intiface-engine --websocket-port "${INTIFACE_PORT}" &
 INTIFACE_PID=$!
 
 # Wait for Intiface Engine to be ready
