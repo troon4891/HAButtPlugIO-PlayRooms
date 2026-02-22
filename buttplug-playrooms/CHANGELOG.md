@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.12] - 2026-02-22
+
+### Added
+- MIT License (`LICENSE` at repo root)
+- Security policy (`SECURITY.md` at repo root) covering vulnerability reporting
+  via GitHub private security advisories, in-scope categories (device control,
+  Share Link access, authentication, data privacy, infrastructure), supported
+  versions, and disclosure process
+
+### Changed
+- Bumped version to 1.0.12 in `config.yaml` and health endpoint
+
 ## [1.0.11] - 2026-02-22
 
 ### Fixed
