@@ -6,7 +6,7 @@ FROM ${BUILD_FROM}
 ARG INTIFACE_ENGINE_VERSION=v1.4.8
 
 # Install Node.js and runtime dependencies
-RUN apt-get -o Acquire::Check-Valid-Until=false update && \
+RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update && \
     apt-get install -y --no-install-recommends \
     nodejs \
     npm \
