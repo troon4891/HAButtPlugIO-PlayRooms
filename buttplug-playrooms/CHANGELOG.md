@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] - 2026-02-22
+
+### Added
+- `NOTICE.md` at repo root listing all third-party dependencies with license
+  types and source URLs, including Apache-2.0 NOTICE preservation notes for
+  drizzle-orm and the Home Assistant base image
+- `CONTRIBUTING.md` at repo root with bug reporting, branch strategy, PR
+  expectations, and dependency update rules
+
+### Changed
+- Overhauled `README.md` into a public-facing landing page with badges,
+  installation instructions, configuration table, known limitations,
+  acknowledgements, and contributor/links sections
+- Expanded `DOCS.md` with "What is a Play Room?", "What is a Share Link?",
+  and detailed per-widget descriptions (moved from README)
+- Bumped version to 1.0.13 in `config.yaml` and health endpoint
+
 ## [1.0.12] - 2026-02-22
 
 ### Added

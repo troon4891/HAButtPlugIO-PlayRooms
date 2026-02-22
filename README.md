@@ -1,44 +1,69 @@
-This is a Home Assistant add-on that hosts a Buttplug.io (Intiface Engine) server and exposes connected devices through a "Play Rooms" system. A PWA provides the guest/host interface. 
+# ButtPlug.io PlayRooms
 
-Hosts create customizable rooms with widgets (Toy Box, Web Cam, Video Chat, Voice Chat, Text Chat), then share them via generated links to allow others to access and play//watch them. 
+A Home Assistant add-on that hosts a Buttplug.io (Intiface Engine) server and exposes connected devices through shareable Play Rooms.
 
----
+![Version](https://img.shields.io/badge/version-1.0.13-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Platform](https://img.shields.io/badge/platform-Home%20Assistant-41BDF5)
+![Status](https://img.shields.io/badge/status-Beta-orange)
 
-### Project Aim
+## What is this?
 
-The aim of this project is to create an add-on for the Home Assistant platform that will host a Buttplug.io instance. This will allow users to connect their toys and expose them inside Play Rooms to both the Home Assistant AI and a PWA for external access via Share Links.
+ButtPlug.io PlayRooms is a Home Assistant add-on that bridges Buttplug.io / Intiface Engine with a Play Rooms system. Hosts create customizable rooms with interactive widgets, pair their Buttplug.io devices, and generate Share Links so guests can join through a Progressive Web App — no app install required.
 
-The Progressive Web App (PWA) will provide a web-based dashboard for sharing and managing these devices through shareable links.
+## Features
 
-### What is a Play Room?
+- **Play Rooms** — customizable spaces with a host/guest model supporting 1-4 guests
+- **Share Links** — generated URLs for external guest access with open or challenge-based entry
+- **Toy Box** — Buttplug.io device controls with intensity sliders, presets, and quick buttons
+- **Web Cam** — host-only one-way webcam streaming to guests via WebRTC
+- **Video Chat** — multi-participant video wall (up to 4 guests) with optional host video
+- **Voice Chat** — push-to-talk or open mic voice communication via WebRTC
+- **Text Chat** — real-time text messaging with message persistence
+- **PWA** — installable Progressive Web App for the guest experience
 
-A Play Room is a customizable space where users can add "widgets" to enhance its functionality and layout. Each Play Room features both a **Guest view** and a **Host view**, accommodating 1 to 4 guests depending on the room settings.
+## Installation
 
-Hosts determine how the room can be accessed, typically through an **open method** or a **challenge system**:
+1. In Home Assistant, go to **Settings > Add-ons > Add-on Store**.
+2. Click the three-dot menu (top right) and select **Repositories**.
+3. Add this repository URL:
+   ```
+   https://github.com/troon4891/HAButtPlugIO-PlayRooms
+   ```
+4. Find **ButtPlug.io PlayRooms** in the add-on list and click **Install**.
+5. Start the add-on and open the web UI from the sidebar.
 
-- **Challenge method**: When a guest joins a share link with a challenge, a code is generated that the guest must enter, or the host can approve their entry through a lobby. 
-- **Open method**: Guests with this link can join by simply entering their name and selecting settings in the lobby.
+## Configuration
 
-Each Play Room includes established Room Rules and a Toy Box for toy management.
+| Option | Default | Description |
+|--------|---------|-------------|
+| `intiface_port` | `12345` | WebSocket port for the Intiface Engine server |
+| `server_port` | `8099` | HTTP port for the PlayRooms web server |
+| `scan_on_start` | `false` | Automatically scan for Buttplug.io devices on startup |
 
-### What is a Share Link?
+## Known Limitations
 
-A Share Link is a generated URL that grants external access to a specific Play Room. The WebUI allows hosts to generate these links. When a guest clicks one, they enter the lobby flow determined by the room's access mode (open or challenge).
+- **amd64 only** — no aarch64 support (no upstream Linux ARM builds for Intiface Engine)
+- **Beta status** — not all features have been verified end-to-end
+- **Room layout editor** — drag-and-resize widget layout is not yet implemented
+- **Add-on icons** — using SVG placeholders; PNG icons not yet created
+- **NAT traversal** — WebRTC features may require a TURN server behind strict NAT (not included)
 
-### Widgets
+## Acknowledgements
 
-#### Toy Box
-The Toy Box contains the Buttplug.io devices linked to this Play Room along with any preconfigured settings, options, and exposed buttons.
+- [Buttplug.io](https://buttplug.io/) and [Intiface Engine](https://github.com/intiface/intiface-engine) — the device control layer this project is built on
+- [Home Assistant](https://www.home-assistant.io/) — the platform hosting this add-on
+- See [NOTICE.md](NOTICE.md) for a full list of third-party dependencies and their licenses
 
-#### Web Cam
-Enables the host to link a webcam and stream video to guests. Guests cannot connect their own cameras to this widget — it is host-only, one-way streaming.
+## Contributors
 
-#### Video Chat
-Creates a small video wall for participants, with the option for the host to join. When the host opts in, their video connection automatically enables voice for all guests.
+Created and maintained by [troon4891](https://github.com/troon4891).
 
-#### Voice Chat
-A walkie-talkie-style voice chat that can operate in either a push-to-talk mode or a continuous open mic format.
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-#### Text Chat
-Real-time text messaging between host and guests within the Play Room, with message persistence in the database.
+## Links
 
+- [Documentation](buttplug-playrooms/DOCS.md) — detailed usage guide, concepts, and widget descriptions
+- [Security Policy](SECURITY.md) — how to report vulnerabilities
+- [Changelog](buttplug-playrooms/CHANGELOG.md) — version history and release notes
+- [NOTICE](NOTICE.md) — third-party dependency licenses
