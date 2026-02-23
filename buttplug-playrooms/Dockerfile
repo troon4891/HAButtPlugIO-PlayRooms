@@ -15,6 +15,7 @@ RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false upd
     bluez \
     dbus \
     libudev1 \
+    libusb-1.0-0 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 

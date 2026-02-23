@@ -2,7 +2,7 @@
 
 A Home Assistant add-on that hosts a Buttplug.io (Intiface Engine) server and exposes connected devices through shareable Play Rooms.
 
-![Version](https://img.shields.io/badge/version-1.0.13-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Home%20Assistant-41BDF5)
 ![Status](https://img.shields.io/badge/status-Beta-orange)
@@ -33,6 +33,8 @@ ButtPlug.io PlayRooms is a Home Assistant add-on that bridges Buttplug.io / Inti
 4. Find **ButtPlug.io PlayRooms** in the add-on list and click **Install**.
 5. Start the add-on and open the web UI from the sidebar.
 
+> **Build time:** The first install builds the Docker image from source, which includes downloading dependencies and compiling both the server and client. This takes several minutes depending on your hardware — this is expected and only happens on the first install or when the add-on is rebuilt.
+
 ## Configuration
 
 | Option | Default | Description |
@@ -40,6 +42,11 @@ ButtPlug.io PlayRooms is a Home Assistant add-on that bridges Buttplug.io / Inti
 | `intiface_port` | `12345` | WebSocket port for the Intiface Engine server |
 | `server_port` | `8099` | HTTP port for the PlayRooms web server |
 | `scan_on_start` | `false` | Automatically scan for Buttplug.io devices on startup |
+| `use_bluetooth` | `false` | Enable Bluetooth LE device scanning* |
+| `use_serial` | `false` | Enable serial port device scanning* |
+| `use_hid` | `false` | Enable USB HID device scanning* |
+
+> \* Transport options require an add-on restart to take effect (no rebuild needed). The host machine must have the corresponding hardware (Bluetooth adapter, serial device, USB dongle) connected and accessible. See [DOCS.md](buttplug-playrooms/DOCS.md) for detailed transport requirements.
 
 ## Known Limitations
 
@@ -48,6 +55,7 @@ ButtPlug.io PlayRooms is a Home Assistant add-on that bridges Buttplug.io / Inti
 - **Room layout editor** — drag-and-resize widget layout is not yet implemented
 - **Add-on icons** — using SVG placeholders; PNG icons not yet created
 - **NAT traversal** — WebRTC features may require a TURN server behind strict NAT (not included)
+- **Hardware access** — transport options require the host to have the corresponding hardware; the add-on logs a warning at startup if an enabled transport has no detected hardware
 
 ## Acknowledgements
 

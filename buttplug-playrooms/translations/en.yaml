@@ -8,3 +8,20 @@ configuration:
   scan_on_start:
     name: Scan on Start
     description: Automatically scan for Buttplug.io devices when the add-on starts
+  use_bluetooth:
+    name: Bluetooth LE
+    description: >-
+      Enable Bluetooth Low Energy device scanning. Requires a Bluetooth adapter
+      on the host machine. The add-on must be restarted after changing this setting.
+  use_serial:
+    name: Serial Port
+    description: >-
+      Enable serial port device scanning (USB-to-serial adapters, Lovense serial
+      dongles). Requires serial devices connected to the host. The add-on must be
+      restarted after changing this setting.
+  use_hid:
+    name: USB HID
+    description: >-
+      Enable USB Human Interface Device scanning (Lovense HID dongles and other
+      USB HID devices). Requires USB devices connected to the host. The add-on
+      must be restarted after changing this setting.

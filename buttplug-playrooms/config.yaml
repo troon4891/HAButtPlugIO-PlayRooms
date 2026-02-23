@@ -1,5 +1,5 @@
 name: "ButtPlug.io PlayRooms"
-version: "1.0.13"
+version: "1.1.0"
 slug: "buttplug-playrooms"
 description: "Host Buttplug.io devices as Play Rooms with PWA access and Share Links"
 url: "https://github.com/troon4891/HAButtPlugIO-PlayRooms/tree/beta/buttplug-playrooms"
@@ -16,11 +16,20 @@ map:
   - addon_config:rw
 hassio_api: true
 auth_api: true
+host_dbus: true
+uart: true
+usb: true
 options:
   intiface_port: 12345
   server_port: 8099
   scan_on_start: false
+  use_bluetooth: false
+  use_serial: false
+  use_hid: false
 schema:
   intiface_port: "int(1024,65535)"
   server_port: "int(1024,65535)"
   scan_on_start: bool
+  use_bluetooth: bool
+  use_serial: bool
+  use_hid: bool
