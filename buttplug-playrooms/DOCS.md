@@ -56,6 +56,65 @@ Real-time text messaging between host and guests within the Play Room, with mess
 | `intiface_port` | `12345` | WebSocket port for the Intiface Engine server |
 | `server_port` | `8099` | HTTP port for the PlayRooms web server |
 | `scan_on_start` | `false` | Automatically scan for devices on startup |
+| `use_bluetooth` | `false` | Enable Bluetooth LE device scanning* |
+| `use_serial` | `false` | Enable serial port device scanning* |
+| `use_hid` | `false` | Enable USB HID device scanning* |
+
+> \* Transport options require an add-on restart to take effect. No rebuild is needed — transport selection is a runtime configuration.
+
+## Transport Configuration
+
+Transports control how the Intiface Engine discovers and communicates with physical devices. Each transport requires both the software toggle (the add-on option) and the corresponding hardware on the host machine.
+
+### Bluetooth LE (`use_bluetooth`)
+
+Enables Bluetooth Low Energy scanning for wireless toys. This is the most common transport for Buttplug.io-compatible devices (Lovense, We-Vibe, Kiiroo, and others).
+
+**Requirements:**
+- A Bluetooth adapter on the Home Assistant host (built-in or USB dongle)
+- The adapter must be visible to the host OS (check with `hciconfig` on the host)
+
+> **\*** If enabled without a Bluetooth adapter, the add-on logs a warning at startup. Scanning will start but will not discover any devices. The add-on uses D-Bus to communicate with BlueZ on the host — the `host_dbus` permission is declared automatically in the add-on configuration.
+
+### Serial Port (`use_serial`)
+
+Enables serial port scanning for USB-to-serial adapters and Lovense serial dongles.
+
+**Requirements:**
+- A serial device connected to the host (appears as `/dev/ttyUSB*` or `/dev/ttyACM*`)
+
+> **\*** Enabling this transport also enables Lovense serial dongle support automatically. Serial devices are hot-pluggable but the add-on must be restarted to detect newly connected serial adapters. The `uart` permission is declared automatically in the add-on configuration.
+
+### USB HID (`use_hid`)
+
+Enables USB Human Interface Device scanning for Lovense HID dongles and other HID-compatible devices.
+
+**Requirements:**
+- A USB HID device connected to the host (appears as `/dev/hidraw*`)
+
+> **\*** Enabling this transport also enables Lovense HID dongle support automatically. Some HID devices may require additional host-level permissions. If device scanning fails, check the add-on logs for permission errors. The `usb` permission is declared automatically in the add-on configuration.
+
+### Verifying Transport Status
+
+After enabling a transport and restarting the add-on, check the add-on logs. The engine logs its transport configuration at startup:
+
+```
+[Engine] Transport configuration:
+[Engine]   Bluetooth LE: ENABLED
+[Engine]   Serial Port:  disabled
+[Engine]   USB HID:      disabled
+[Engine]   Bluetooth hardware: Found adapter(s): hci0
+[Engine] Starting Intiface Engine on port 12345
+[Engine] Arguments: --websocket-port 12345 --use-bluetooth-le
+```
+
+If an enabled transport has no corresponding hardware, a warning appears:
+
+```
+[Engine] WARNING: Bluetooth LE is enabled but no Bluetooth adapter was detected
+(/sys/class/bluetooth/ is empty). Ensure the host has a Bluetooth adapter
+and the add-on has host_dbus access.
+```
 
 ## Access Modes
 
@@ -71,14 +130,47 @@ Guests must either:
 
 1. Install the add-on from your Home Assistant instance
 2. Open the PlayRooms panel from the sidebar
-3. Create a Play Room and configure its widgets
-4. Pair your Buttplug.io devices via the Settings page
-5. Assign devices to the room's Toy Box
-6. Generate a Share Link and send it to your guest(s)
-7. Guests open the link in their browser (PWA installable) and join through the lobby
+3. **Enable at least one transport** (Bluetooth, Serial, or USB HID) in the add-on configuration
+4. Create a Play Room and configure its widgets
+5. Pair your Buttplug.io devices via the Settings page
+6. Assign devices to the room's Toy Box
+7. Generate a Share Link and send it to your guest(s)
+8. Guests open the link in their browser (PWA installable) and join through the lobby
 
 ## Network Requirements
 
 - WebRTC features (Video Chat, Voice Chat, Web Cam) require peer-to-peer connectivity
 - If behind strict NAT, a TURN server may be needed (not included by default)
 - The add-on uses HA's ingress system for authenticated host access
+
+## Browser Requirements
+
+Guest access via Share Links requires a modern browser. The following minimum versions are needed:
+
+| Feature | Required For | Chrome | Firefox | Safari | Edge |
+|---------|-------------|--------|---------|--------|------|
+| WebSocket | All features | 16+ | 11+ | 7+ | 12+ |
+| WebRTC | Video/Voice Chat, Web Cam | 28+ | 22+ | 11+ | 79+ |
+| Service Worker | PWA install | 40+ | 44+ | 11.1+ | 17+ |
+| MediaDevices API | Camera/mic access | 53+ | 36+ | 11+ | 79+ |
+
+> **HTTPS required for WebRTC:** Share links accessed over plain HTTP will fail camera and microphone permissions in Chrome, Firefox, and Safari. Home Assistant ingress provides an authenticated HTTPS context. If accessing Share Links directly (not through ingress), ensure HTTPS is configured or use `localhost`.
+
+## Community Tested Devices
+
+The following devices have been tested by the community with this add-on. Results may vary depending on host hardware and environment.
+
+| Device | Transport | Status | Notes |
+|--------|-----------|--------|-------|
+| *(Community testing in progress)* | | | *Report results in [GitHub Discussions](https://github.com/troon4891/HAButtPlugIO-PlayRooms/discussions)* |
+
+> These tables are maintained by the development team based on community reports. To add your device, open a thread in [GitHub Discussions](https://github.com/troon4891/HAButtPlugIO-PlayRooms/discussions).
+
+## Community Tested HA Platforms
+
+| Installation Type | Hardware | Status | Notes |
+|-------------------|----------|--------|-------|
+| HA OS | amd64 / x86_64 | Verified | Development platform |
+| *(Other platforms)* | | | *Report results in [GitHub Discussions](https://github.com/troon4891/HAButtPlugIO-PlayRooms/discussions)* |
+
+> These tables are maintained by the development team based on community reports. To add your platform, open a thread in [GitHub Discussions](https://github.com/troon4891/HAButtPlugIO-PlayRooms/discussions).

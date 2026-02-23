@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-23
+
+### Added
+- Transport configuration options for Intiface Engine device discovery
+  - `use_bluetooth` (default: false) — Bluetooth Low Energy scanning
+  - `use_serial` (default: false) — Serial port and Lovense serial dongle
+  - `use_hid` (default: false) — USB HID and Lovense HID dongle
+- Hardware availability checks at engine startup
+  - Bluetooth: checks `/sys/class/bluetooth/` for adapter presence
+  - Serial: checks `/dev/ttyUSB*` and `/dev/ttyACM*` for connected devices
+  - USB HID: checks `/dev/hidraw*` for HID devices
+  - Clear `[Engine] WARNING:` messages when enabled transports lack hardware
+- Home Assistant hardware permissions in `config.yaml`
+  - `host_dbus: true` — D-Bus access for Bluetooth via BlueZ
+  - `uart: true` — serial port device mapping
+  - `usb: true` — raw USB device mapping for HID
+- `libusb-1.0-0` Dockerfile dependency for USB/HID transport support
+- Transport status in `/api/health` endpoint response
+- Browser requirements section in DOCS.md (WebSocket, WebRTC, Service Worker)
+- Transport configuration documentation in DOCS.md with per-transport
+  requirements and warning callouts
+- Community Tested Devices and Community Tested HA Platforms tables in DOCS.md
+  with GitHub Discussions placeholder links
+
+### Changed
+- Intiface Engine now receives explicit `--use-*` CLI flags based on enabled
+  transports instead of starting with no transport flags
+- Bumped version to 1.1.0 in `config.yaml` and health endpoint
+- Updated README.md with transport config table rows and build-time note
+- Migrated `scanOnStart` config parsing to use `parseBool` helper for
+  correct string-to-boolean conversion
+
 ## [1.0.13] - 2026-02-22
 
 ### Added
