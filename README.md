@@ -2,7 +2,7 @@
 
 A Home Assistant add-on that hosts a Buttplug.io (Intiface Engine) server and exposes connected devices through shareable Play Rooms.
 
-![Version](https://img.shields.io/badge/version-1.0.14-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Home%20Assistant-41BDF5)
 ![Status](https://img.shields.io/badge/status-Beta-orange)
