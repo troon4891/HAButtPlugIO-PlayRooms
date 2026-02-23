@@ -62,3 +62,11 @@ it. You need a running Intiface Engine instance for device features.
 
 By contributing, you agree that your contributions will be licensed under the
 [MIT License](LICENSE).
+
+## Notable Contributors
+
+The following tools and individuals have made significant contributions to this project outside the standard pull request workflow.
+
+| Name | Type | Links |
+|------|------|-------|
+| Claude by Anthropic | AI Assistant | [anthropic.com](https://anthropic.com) |
