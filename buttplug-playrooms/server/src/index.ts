@@ -12,22 +12,34 @@ import { startEngine, stopEngine } from "./buttplug/engine.js";
 import { connectClient, startScanning, isConnected, getDeviceStates } from "./buttplug/client.js";
 import { roomRouter } from "./rooms/room.routes.js";
 import { setupRoomSockets } from "./rooms/room.socket.js";
-import { requireHost, requireShareToken } from "./auth/middleware.js";
+import { requireHost } from "./auth/middleware.js";
 import { createShareLink, validateShareLink, revokeShareLink, getLinksForRoom } from "./auth/share-links.js";
 import { assignDeviceToRoom } from "./widgets/toybox.service.js";
+import { authRouter } from "./auth/auth.routes.js";
+import { apiKeysRouter } from "./auth/api-keys.routes.js";
+import { webhookRouter } from "./webhooks/webhook.routes.js";
+import { rateLimiter } from "./auth/rate-limiter.js";
+import { startCleanupInterval, stopCleanupInterval } from "./auth/cleanup.js";
+import { dispatchEvent } from "./webhooks/webhook.service.js";
 
-import type { ServerToClientEvents, ClientToServerEvents } from "./types/index.js";
+import type { ServerToClientEvents, ClientToServerEvents, GuestType } from "./types/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const server = createServer(app);
+
+// CORS configuration — configurable for standalone mode
+const corsOrigin = config.corsOrigins === "*" || config.corsOrigins === ""
+  ? "*"
+  : config.corsOrigins.split(",").map((s) => s.trim());
+
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: { origin: corsOrigin, methods: ["GET", "POST"] },
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 
 // Serve static PWA files (index: false so index.html goes through ingress injection)
@@ -36,8 +48,19 @@ if (existsSync(publicDir)) {
   app.use(express.static(publicDir, { index: false }));
 }
 
-// --- Host API routes (require HA ingress auth) ---
+// --- Auth routes (standalone mode) ---
+if (config.authMode === "standalone") {
+  app.use("/api/auth", authRouter);
+}
+
+// --- Host API routes (require auth) ---
 app.use("/api/rooms", requireHost, roomRouter);
+
+// Mount webhook routes under rooms
+app.use("/api/rooms/:roomId/webhooks", requireHost, webhookRouter);
+
+// API key management
+app.use("/api/keys", apiKeysRouter);
 
 app.get("/api/devices", requireHost, (_req, res) => {
   res.json(getDeviceStates());
@@ -78,7 +101,8 @@ app.post("/api/devices/:id/assign", requireHost, (req, res) => {
 // Share link management
 app.post("/api/rooms/:id/share", requireHost, (req, res) => {
   const expiresInMs = req.body.expiresInMs;
-  const link = createShareLink(req.params.id, expiresInMs);
+  const guestType = (req.body.guestType as GuestType) || "short";
+  const link = createShareLink(req.params.id, expiresInMs, guestType);
   res.status(201).json(link);
 });
 
@@ -92,8 +116,8 @@ app.delete("/api/share/:token", requireHost, (req, res) => {
   res.status(204).send();
 });
 
-// --- Guest routes (require share token) ---
-app.get("/api/join/:token", (req, res) => {
+// --- Guest routes (public, rate-limited) ---
+app.get("/api/join/:token", rateLimiter(60_000, 20, "share-validate"), (req, res) => {
   const result = validateShareLink(req.params.token);
   if (!result) {
     res.status(404).json({ error: "Invalid or expired share link" });
@@ -108,6 +132,7 @@ app.get("/api/join/:token", (req, res) => {
     challengeType: room.challengeType,
     maxGuests: room.maxGuests,
     widgets: JSON.parse(room.widgets).map((w: { type: string }) => w.type),
+    guestType: result.link.guestType,
   });
 });
 
@@ -116,8 +141,9 @@ app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     buttplug: isConnected(),
-    version: "1.1.0",
+    version: "2.0.0",
     transports: config.transports,
+    authMode: config.authMode,
   });
 });
 
@@ -146,8 +172,12 @@ setupRoomSockets(io);
 
 // --- Startup ---
 async function start(): Promise<void> {
+  console.log(`[PlayRooms] Auth mode: ${config.authMode}`);
   console.log("[PlayRooms] Running database migrations...");
   runMigrations();
+
+  // Start periodic cleanup (expired tokens, challenge codes, inactive guests)
+  startCleanupInterval();
 
   let engineRunning = false;
   console.log("[PlayRooms] Starting Intiface Engine...");
@@ -184,6 +214,7 @@ async function start(): Promise<void> {
 // Graceful shutdown
 process.on("SIGTERM", () => {
   console.log("[PlayRooms] Shutting down...");
+  stopCleanupInterval();
   stopEngine();
   server.close();
   process.exit(0);
@@ -191,6 +222,7 @@ process.on("SIGTERM", () => {
 
 process.on("SIGINT", () => {
   console.log("[PlayRooms] Interrupted, shutting down...");
+  stopCleanupInterval();
   stopEngine();
   server.close();
   process.exit(0);

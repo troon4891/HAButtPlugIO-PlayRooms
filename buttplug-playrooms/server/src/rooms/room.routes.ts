@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import * as roomService from "./room.service.js";
+import { dispatchEvent } from "../webhooks/webhook.service.js";
 
 export const roomRouter = Router();
 
@@ -42,10 +43,14 @@ roomRouter.put("/:id", (req: Request, res: Response) => {
     res.status(404).json({ error: "Room not found" });
     return;
   }
-  res.json({ ...room, widgets: JSON.parse(room.widgets) });
+  const parsed = { ...room, widgets: JSON.parse(room.widgets) };
+  dispatchEvent(req.params.id, "room:updated", parsed);
+  res.json(parsed);
 });
 
 roomRouter.delete("/:id", (req: Request, res: Response) => {
+  // Dispatch webhook before deletion (cascade will remove webhook records)
+  dispatchEvent(req.params.id, "room:deleted", { roomId: req.params.id });
   const deleted = roomService.deleteRoom(req.params.id);
   if (!deleted) {
     res.status(404).json({ error: "Room not found" });

@@ -9,6 +9,7 @@ export interface CreateRoomInput {
   challengeType?: ChallengeType;
   maxGuests: number;
   widgets: WidgetConfig[];
+  guestInactivityDays?: number;
 }
 
 export interface UpdateRoomInput {
@@ -17,6 +18,7 @@ export interface UpdateRoomInput {
   challengeType?: ChallengeType | null;
   maxGuests?: number;
   widgets?: WidgetConfig[];
+  guestInactivityDays?: number;
 }
 
 export function listRooms() {
@@ -36,6 +38,7 @@ export function createRoom(input: CreateRoomInput) {
     challengeType: input.challengeType ?? null,
     maxGuests: Math.min(4, Math.max(1, input.maxGuests)),
     widgets: JSON.stringify(input.widgets),
+    guestInactivityDays: input.guestInactivityDays ?? 30,
     createdAt: now,
     updatedAt: now,
   };
@@ -55,6 +58,7 @@ export function updateRoom(id: string, input: UpdateRoomInput) {
   if (input.challengeType !== undefined) updates.challengeType = input.challengeType;
   if (input.maxGuests !== undefined) updates.maxGuests = Math.min(4, Math.max(1, input.maxGuests));
   if (input.widgets !== undefined) updates.widgets = JSON.stringify(input.widgets);
+  if (input.guestInactivityDays !== undefined) updates.guestInactivityDays = input.guestInactivityDays;
 
   db.update(schema.playRooms).set(updates).where(eq(schema.playRooms.id, id)).run();
   return getRoom(id);

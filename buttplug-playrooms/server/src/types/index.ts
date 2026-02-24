@@ -3,6 +3,14 @@ export type ChallengeType = "code" | "approval";
 export type GuestStatus = "pending" | "approved" | "joined" | "disconnected";
 export type WidgetType = "toybox" | "webcam" | "videochat" | "voicechat" | "textchat";
 export type VoiceMode = "ptt" | "open";
+export type UserRole = "admin" | "host";
+export type GuestType = "short" | "long";
+export type AuthMode = "ha-ingress" | "standalone";
+export type ApiKeyScope = "rooms:read" | "rooms:write" | "devices:read" | "devices:write" | "guests:read" | "webhooks:manage";
+export type WebhookEvent =
+  | "guest:joined" | "guest:left" | "guest:approved" | "guest:rejected"
+  | "device:connected" | "device:disconnected" | "device:assigned"
+  | "command:sent" | "room:updated" | "room:deleted" | "chat:message";
 
 export interface WidgetConfig {
   type: WidgetType;

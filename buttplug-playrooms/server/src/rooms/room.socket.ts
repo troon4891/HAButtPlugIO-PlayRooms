@@ -1,17 +1,37 @@
 import type { Server, Socket } from "socket.io";
 import type { ServerToClientEvents, ClientToServerEvents } from "../types/index.js";
+import { config } from "../config.js";
 import { validateShareLink } from "../auth/share-links.js";
+import { verifyToken } from "../auth/tokens.js";
 import * as lobby from "../auth/lobby.js";
 import * as chatService from "../widgets/chat.service.js";
 import * as toyboxService from "../widgets/toybox.service.js";
 import * as mediaSignaling from "../widgets/media.signaling.js";
 import { onDevicesChanged } from "../buttplug/client.js";
+import { dispatchEvent } from "../webhooks/webhook.service.js";
 
 type IOServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 // Track host sockets per room
 const hostSockets = new Map<string, string>(); // roomId -> socketId
+
+function verifyHostConnection(socket: IOSocket): boolean {
+  if (config.authMode === "ha-ingress") {
+    // HA mode: check ingress header or local origin
+    const headers = socket.handshake.headers;
+    const ingressPath = headers["x-ingress-path"];
+    const origin = socket.handshake.address;
+    const isLocal = origin === "127.0.0.1" || origin === "::1" || origin === "172.30.32.2";
+    return !!(ingressPath || isLocal);
+  }
+
+  // Standalone mode: require valid JWT
+  const jwt = socket.handshake.query.jwt as string;
+  if (!jwt) return false;
+  const payload = verifyToken(jwt);
+  return payload !== null;
+}
 
 export function setupRoomSockets(io: IOServer): void {
   // Broadcast device state changes to all rooms
@@ -33,6 +53,12 @@ export function setupRoomSockets(io: IOServer): void {
     }
 
     if (isHost) {
+      // Verify host identity server-side instead of trusting client flag
+      if (!verifyHostConnection(socket)) {
+        socket.emit("error", { message: "Host authentication failed" });
+        socket.disconnect();
+        return;
+      }
       handleHostConnection(io, socket, roomId);
     } else if (token && guestName) {
       handleGuestConnection(io, socket, roomId, token, guestName);
@@ -68,17 +94,20 @@ function handleHostConnection(io: IOServer, socket: IOSocket, roomId: string): v
   socket.on("lobby:approve", (data) => {
     if (lobby.approveGuest(data.guestId)) {
       io.to(`room:${roomId}`).emit("guest:approved", { guestId: data.guestId });
+      dispatchEvent(roomId, "guest:approved", { guestId: data.guestId });
     }
   });
 
   socket.on("lobby:reject", (data) => {
     lobby.rejectGuest(data.guestId);
+    dispatchEvent(roomId, "guest:rejected", { guestId: data.guestId });
   });
 
   // Host device commands
   socket.on("device:command", async (cmd) => {
     try {
       await toyboxService.sendDeviceCommand(cmd);
+      dispatchEvent(roomId, "command:sent", cmd);
     } catch (err) {
       socket.emit("error", { message: `Device command failed: ${(err as Error).message}` });
     }
@@ -88,6 +117,7 @@ function handleHostConnection(io: IOServer, socket: IOSocket, roomId: string): v
   socket.on("chat:message", (data) => {
     const msg = chatService.saveMessage(roomId, "Host", data.message);
     io.to(`room:${roomId}`).emit("chat:message", msg);
+    dispatchEvent(roomId, "chat:message", { senderName: "Host", message: data.message });
   });
 
   // Host media signaling
@@ -120,6 +150,7 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
     socket.join(`room:${roomId}`);
     io.to(`room:${roomId}`).emit("guest:joined", { guestId, name });
     socket.emit("guest:approved", { guestId });
+    dispatchEvent(roomId, "guest:joined", { guestId, name });
 
     // Send recent chat history
     const messages = chatService.getRecentMessages(roomId, 50);
@@ -145,6 +176,8 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
         socket.join(`room:${roomId}`);
         io.to(`room:${roomId}`).emit("guest:joined", { guestId, name });
         socket.emit("guest:approved", { guestId });
+        dispatchEvent(roomId, "guest:joined", { guestId, name });
+        dispatchEvent(roomId, "guest:approved", { guestId, name });
 
         mediaSignaling.addParticipant(roomId, guestId, socket.id, name);
         mediaSignaling.setupMediaSignaling(io, socket, roomId, guestId);
@@ -156,6 +189,7 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
   socket.on("device:command", async (cmd) => {
     try {
       await toyboxService.sendDeviceCommand(cmd);
+      dispatchEvent(roomId, "command:sent", { ...cmd, guestId, guestName: name });
     } catch (err) {
       socket.emit("error", { message: `Device command failed: ${(err as Error).message}` });
     }
@@ -165,6 +199,7 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
   socket.on("chat:message", (data) => {
     const msg = chatService.saveMessage(roomId, name, data.message);
     io.to(`room:${roomId}`).emit("chat:message", msg);
+    dispatchEvent(roomId, "chat:message", { senderName: name, message: data.message });
   });
 
   socket.on("disconnect", () => {
@@ -172,5 +207,6 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
     lobby.markGuestDisconnected(socket.id);
     mediaSignaling.removeParticipant(roomId, guestId);
     io.to(`room:${roomId}`).emit("guest:left", { guestId });
+    dispatchEvent(roomId, "guest:left", { guestId, name });
   });
 }

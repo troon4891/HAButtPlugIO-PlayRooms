@@ -5,196 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2026-02-23
+## [2.0.0] - 2026-02-24
+
+Forked from [HAButtPlugIO-PlayRooms](<!-- REPO_URL_PLACEHOLDER -->).
+This release introduces standalone Docker deployment, user accounts,
+two-tier guest profiles, API keys, room-scoped webhooks, and security hardening.
 
 ### Added
-- Transport configuration options for Intiface Engine device discovery
-  - `use_bluetooth` (default: false) — Bluetooth Low Energy scanning
-  - `use_serial` (default: false) — Serial port and Lovense serial dongle
-  - `use_hid` (default: false) — USB HID and Lovense HID dongle
-- Hardware availability checks at engine startup
-  - Bluetooth: checks `/sys/class/bluetooth/` for adapter presence
-  - Serial: checks `/dev/ttyUSB*` and `/dev/ttyACM*` for connected devices
-  - USB HID: checks `/dev/hidraw*` for HID devices
-  - Clear `[Engine] WARNING:` messages when enabled transports lack hardware
-- Home Assistant hardware permissions in `config.yaml`
-  - `host_dbus: true` — D-Bus access for Bluetooth via BlueZ
-  - `uart: true` — serial port device mapping
-  - `usb: true` — raw USB device mapping for HID
-- `libusb-1.0-0` Dockerfile dependency for USB/HID transport support
-- Transport status in `/api/health` endpoint response
-- Browser requirements section in DOCS.md (WebSocket, WebRTC, Service Worker)
-- Transport configuration documentation in DOCS.md with per-transport
-  requirements and warning callouts
-- Community Tested Devices and Community Tested HA Platforms tables in DOCS.md
-  with GitHub Discussions placeholder links
+- **Standalone Docker mode**: Run outside Home Assistant with built-in user accounts
+  - Auto-detects mode: HA ingress when `/data/options.json` present, standalone otherwise
+  - JWT-based auth (HS256, zero external dependencies)
+  - Initial admin setup via `POST /api/auth/setup`
+- **User accounts** (`users` table): username/password with admin and host roles
+- **Login security**: Login attempt tracking, hard lockout after 5 failures (15-min duration)
+- **Two-tier guest system**:
+  - Short-lived guests: ephemeral, session-based (existing behavior)
+  - Long-lived guests: persistent profiles with optional passwords, activity tracking
+  - Global guest profiles that can be invited to multiple rooms
+  - Per-room configurable inactivity timeout for auto-expiring idle guest profiles
+- **API keys**: Scoped, hashed keys for programmatic access (`rooms:read`, `rooms:write`,
+  `devices:read`, `devices:write`, `guests:read`, `webhooks:manage`)
+- **Room-scoped webhooks**: Outbound HTTP notifications with HMAC-SHA256 signing
+  - Events: `guest:joined`, `guest:left`, `guest:approved`, `guest:rejected`,
+    `device:connected`, `device:disconnected`, `device:assigned`, `command:sent`,
+    `room:updated`, `room:deleted`, `chat:message`
+  - Test ping endpoint for webhook verification
+- **Rate limiting**: In-memory sliding window on login (5/min), public API (60/min),
+  share link validation (20/min)
+- **Periodic cleanup**: Expired share links, challenge codes, and inactive guest profiles
+  removed automatically every hour
 
 ### Changed
-- Intiface Engine now receives explicit `--use-*` CLI flags based on enabled
-  transports instead of starting with no transport flags
-- Bumped version to 1.1.0 in `config.yaml` and health endpoint
-- Updated README.md with transport config table rows and build-time note
-- Migrated `scanOnStart` config parsing to use `parseBool` helper for
-  correct string-to-boolean conversion
+- Challenge codes now use `crypto.randomInt()` instead of `Math.random()`
+- Challenge codes persisted to database (survive server restart)
+- Host WebSocket connections verified server-side (no longer trusts client `isHost` flag)
+- CORS configurable via `CORS_ORIGINS` env var (defaults restricted in standalone mode)
+- Password hashing uses Node.js `crypto.scrypt` (no external dependencies)
+- Share links gain `guest_type` field (`short` | `long`) to control guest persistence
 
-## [1.0.13] - 2026-02-22
+### Security
+- Fixed: Host impersonation via client-provided `isHost` WebSocket query param
+- Fixed: Predictable challenge codes from `Math.random()`
+- Fixed: Challenge codes lost on server restart (moved to DB with 5-min expiry)
+- Fixed: Unrestricted CORS `origin: "*"` in standalone mode
+- Added: Rate limiting on authentication and public endpoints
+- Added: Input validation on names (50 char), messages (2000 char), URLs (http/https)
 
-### Added
-- `NOTICE.md` at repo root listing all third-party dependencies with license
-  types and source URLs, including Apache-2.0 NOTICE preservation notes for
-  drizzle-orm and the Home Assistant base image
-- `CONTRIBUTING.md` at repo root with bug reporting, branch strategy, PR
-  expectations, and dependency update rules
+---
 
-### Changed
-- Overhauled `README.md` into a public-facing landing page with badges,
-  installation instructions, configuration table, known limitations,
-  acknowledgements, and contributor/links sections
-- Expanded `DOCS.md` with "What is a Play Room?", "What is a Share Link?",
-  and detailed per-widget descriptions (moved from README)
-- Bumped version to 1.0.13 in `config.yaml` and health endpoint
-
-## [1.0.12] - 2026-02-22
-
-### Added
-- MIT License (`LICENSE` at repo root)
-- Security policy (`SECURITY.md` at repo root) covering vulnerability reporting
-  via GitHub private security advisories, in-scope categories (device control,
-  Share Link access, authentication, data privacy, infrastructure), supported
-  versions, and disclosure process
-
-### Changed
-- Bumped version to 1.0.12 in `config.yaml` and health endpoint
-
-## [1.0.11] - 2026-02-22
-
-### Fixed
-- Fixed blank page when loading through HA ingress
-  - Added server-side `<base>` tag and `__INGRESS_PATH__` injection from `X-Ingress-Path` header
-  - Set Vite `base: "./"` so built assets use relative paths
-  - Added `BrowserRouter basename` for correct client-side routing under ingress prefix
-  - Made API client, Socket.IO, and share link URLs ingress-aware via shared `ingress.ts` utility
-  - Direct port access (non-ingress) continues to work unchanged
-
-### Changed
-- Bumped version to 1.0.11 in `config.yaml` and health endpoint
-- Updated `config.yaml` URL from `tree/main` to `tree/beta`
-
-## [1.0.10] - 2026-02-22
-
-### Fixed
-- Additional apt clock skew fix
-  - Added `Acquire::Check-Date=false` for systems with forward clock drift
-
-## [1.0.9] - 2026-02-22
-
-### Fixed
-- Fixed `apt-get update` failure from clock skew on HA systems
-  - Added `Acquire::Check-Valid-Until=false` to apt configuration
-
-## [1.0.8] - 2026-02-22
-
-### Fixed
-- Removed duplicate Intiface Engine startup from `run.sh`
-  - Engine was started by both `run.sh` (shell) and `engine.ts` (Node.js), causing
-    `AddrInUse` on port 12345 for the second instance
-  - Engine lifecycle is now managed exclusively by the Node.js server via `engine.ts`
-  - `run.sh` simplified to only export config and start the Node.js server
-
-## [1.0.7] - 2026-02-22
-
-### Fixed
-- Updated intiface-engine CLI arguments for v1.4.8
-  - `--wsinsecureport` → `--websocket-port` (renamed upstream)
-  - Removed `--stayopen` (no longer needed; engine runs continuously by default)
-- Fixed in both `run.sh` and `server/src/buttplug/engine.ts`
-
-## [1.0.6] - 2026-02-21
-
-### Fixed
-- Switched from Alpine to Debian base image to resolve glibc symbol errors
-  (`__mbstowcs_chk`, `__wcsncpy_chk`, `__res_init` not available in Alpine's gcompat)
-- Fixed unhandled WebSocket crash when intiface-engine fails to start
-  (skip client connection attempt when engine is not running)
-
-### Changed
-- Base image: `amd64-base:3.19` (Alpine) → `amd64-base-debian:bookworm` (Debian 12)
-- Package manager: `apk` → `apt-get`
-- Node.js: 20.x → 18.x (Debian bookworm default; fully compatible)
-
-## [1.0.5] - 2026-02-21
-
-### Fixed
-- Added `eudev-libs` package for `libudev.so.1` required by intiface-engine at runtime
-- Made intiface-engine startup failure non-fatal in `run.sh` (server already handles this gracefully)
-
-## [1.0.4] - 2026-02-21
-
-### Fixed
-- Fixed client TypeScript build errors preventing Docker image creation
-  - Removed unused `localStream` destructuring in VideoChat and WebCam widgets
-  - Removed unused `devicesApi` import in RoomHost page
-  - Added `vite-env.d.ts` for CSS import type declarations (`noUncheckedSideEffectImports`)
-
-## [1.0.3] - 2026-02-21
-
-### Fixed
-- Fixed TypeScript build errors from `@types/express` v5 / Express v4 mismatch
-  - Downgraded `@types/express` from `^5.0.0` to `^4.17.0` to match Express 4 runtime
-- Fixed duplicate `RTCIceCandidateInit` type declaration conflicting with `@types/node` v22
-- Updated health check endpoint version from `1.0.0` to `1.0.3`
-
-## [1.0.2] - 2026-02-21
-
-### Fixed
-- Fixed Docker build failure caused by changed Intiface Engine release asset naming
-  - Updated download URL from Rust-triple tar.gz format to new `x64-Release.zip` format
-  - Replaced `tar` extraction with `unzip` for the new zip archive format
-  - Pinned Intiface Engine to v1.4.8 for reproducible builds
-- Generated missing `package-lock.json` files for server and client (required by `npm ci`)
-- Updated deprecated npm flags (`--production=false` → default, `--production` → `--omit=dev`)
-
-### Changed
-- Removed `aarch64` architecture support (no upstream Linux ARM builds available)
-- Added default value for `BUILD_FROM` ARG to fix `InvalidDefaultArgInFrom` Docker warning
-- Added `libc6-compat` for glibc binary compatibility on Alpine
-
-## [1.0.1] - 2026-02-21
-
-### Fixed
-- Restructured repository to match HA custom add-on repository requirements
-- Added `repository.yaml` at repo root with required `name`, `url`, `maintainer` fields
-- Moved all add-on files into `buttplug-playrooms/` subdirectory (matching slug)
-- Updated `config.yaml` url to point to the add-on subdirectory
-
-## [1.0.0] - 2026-02-21
-
-### Added
-- Home Assistant add-on with ingress support and Intiface Engine integration
-- Play Rooms system with customizable widget layouts
-- Two access modes: Open (anyone with link) and Challenge (code or host approval)
-- Share Links for external PWA access to Play Rooms
-- Progressive Web App (PWA) with offline support
-- **Toy Box widget**: Buttplug.io device controls with presets and exposed buttons
-- **Web Cam widget**: Host-only webcam streaming to guests via WebRTC
-- **Video Chat widget**: Multi-participant video wall with host opt-in voice activation
-- **Voice Chat widget**: Push-to-talk and open mic modes via WebRTC
-- **Text Chat widget**: Real-time text messaging with message persistence
-- SQLite database for room configs, share links, and chat history
-- WebRTC P2P signaling via Socket.IO for media widgets
-- Bundled Intiface Engine binary for amd64 and aarch64 architectures
-- Host dashboard for room management and device assignment
-- Guest lobby with name entry and challenge verification
-- Responsive mobile-first design for guest PWA experience
+> This project was forked from the original HAButtPlugIO-PlayRooms HA add-on.
+> Versions prior to 2.0.0 refer to the upstream project.
 
 ---
 
 ## Version Control Notes
-All notable changes to this project will be documented in this file.
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-> Reference for maintaining consistent version bumps across the project.
 
 ### Versioning scheme
 
