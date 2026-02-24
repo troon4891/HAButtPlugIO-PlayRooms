@@ -12,7 +12,8 @@ https://github.com/troon4891/HAButtPlugIO-PlayRooms/issues
 Include:
 - Steps to reproduce
 - Expected vs. actual behavior
-- Your Home Assistant and add-on versions
+- Your deployment mode (HA add-on or standalone Docker) and version
+- Your platform (HA OS, VirtualBox, Proxmox, bare metal, etc.)
 - Browser and OS (for client-side issues)
 
 For **security vulnerabilities**, do **not** open a public issue. Follow the
@@ -33,8 +34,12 @@ process described in [SECURITY.md](SECURITY.md).
 5. If you add or update a dependency, you **must** update
    [NOTICE.md](NOTICE.md) with the package name, version, license, and
    source URL.
+6. If you update a platform guide, test the steps on that platform before
+   submitting.
 
 ## Development Setup
+
+### Option 1: Local Development (without Docker)
 
 ```bash
 # Clone and enter the repo
@@ -50,6 +55,21 @@ cd client && npm install && npm run dev
 
 The server runs on port 8099 and the client dev server proxies API calls to
 it. You need a running Intiface Engine instance for device features.
+
+In standalone mode (the default when not running under HA), the server starts
+with built-in user accounts. On first launch, visit `http://localhost:8099` to
+create your admin account.
+
+### Option 2: Docker Development
+
+```bash
+git clone https://github.com/troon4891/HAButtPlugIO-PlayRooms.git
+cd HAButtPlugIO-PlayRooms
+docker compose up -d --build
+```
+
+See the [Platform Guides](docs/) for detailed setup including hardware
+passthrough on VirtualBox or Proxmox.
 
 ## Code Style
 

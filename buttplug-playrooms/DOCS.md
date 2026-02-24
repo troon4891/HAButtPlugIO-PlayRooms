@@ -1,6 +1,6 @@
 # ButtPlug.io PlayRooms — Documentation
 
-A Home Assistant add-on that hosts a Buttplug.io (Intiface Engine) instance and exposes connected devices through shareable Play Rooms.
+A Buttplug.io (Intiface Engine) server that exposes connected devices through shareable Play Rooms. Runs as a Home Assistant add-on or standalone Docker container.
 
 ## Features
 
@@ -137,11 +137,48 @@ Guests must either:
 7. Generate a Share Link and send it to your guest(s)
 8. Guests open the link in their browser (PWA installable) and join through the lobby
 
+## Standalone Docker Deployment
+
+PlayRooms can run outside Home Assistant as a standalone Docker container. The server auto-detects the deployment mode at startup:
+
+- If `/data/options.json` exists → **Home Assistant mode** (ingress auth)
+- Otherwise → **Standalone mode** (built-in user accounts)
+
+### Environment Variables (Standalone Mode)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SERVER_PORT` | `8099` | HTTP server port |
+| `INTIFACE_PORT` | `12345` | Intiface Engine WebSocket port (internal) |
+| `USE_BLUETOOTH` | `false` | Enable Bluetooth LE device scanning |
+| `USE_SERIAL` | `false` | Enable serial port scanning |
+| `USE_HID` | `false` | Enable USB HID scanning |
+| `SCAN_ON_START` | `false` | Auto-scan for devices on startup |
+| `DATA_DIR` | `/data` | Persistent data directory (database, config) |
+| `AUTH_MODE` | (auto-detected) | `ha-ingress`, `standalone`, or `none` |
+| `JWT_SECRET` | (auto-generated) | Secret for signing session tokens; persisted to `DATA_DIR/.jwt-secret` |
+| `CORS_ORIGINS` | `*` (HA) / restricted (standalone) | Allowed CORS origins, comma-separated |
+
+### Hardware Passthrough (Docker)
+
+When running standalone, you must manually pass through hardware that the Home Assistant Supervisor normally handles:
+
+| Hardware | Docker flag | Purpose |
+|----------|-------------|---------|
+| Bluetooth adapter | `-v /var/run/dbus:/var/run/dbus` + `--privileged` | D-Bus access for BlueZ |
+| Serial dongle | `--device /dev/ttyUSB0:/dev/ttyUSB0` | Direct serial device access |
+| USB HID dongle | `--device /dev/hidraw0:/dev/hidraw0` | Direct HID device access |
+
+See the [Platform Setup Guides](../docs/) for step-by-step instructions:
+- [VirtualBox Setup Guide](../docs/setup-virtualbox.md)
+- [Proxmox Setup Guide](../docs/setup-proxmox.md)
+
 ## Network Requirements
 
 - WebRTC features (Video Chat, Voice Chat, Web Cam) require peer-to-peer connectivity
 - If behind strict NAT, a TURN server may be needed (not included by default)
-- The add-on uses HA's ingress system for authenticated host access
+- In HA mode, the add-on uses HA's ingress system for authenticated host access
+- In standalone mode, the server provides its own login system; access the web UI directly on the configured port
 
 ## Browser Requirements
 
@@ -166,11 +203,13 @@ The following devices have been tested by the community with this add-on. Result
 
 > These tables are maintained by the development team based on community reports. To add your device, open a thread in [GitHub Discussions](https://github.com/troon4891/HAButtPlugIO-PlayRooms/discussions).
 
-## Community Tested HA Platforms
+## Community Tested Platforms
 
 | Installation Type | Hardware | Status | Notes |
 |-------------------|----------|--------|-------|
-| HA OS | amd64 / x86_64 | Verified | Development platform |
+| HA OS | amd64 / x86_64 | Verified | Primary development platform |
+| VirtualBox VM (standalone Docker) | amd64 / x86_64 | Verified | [Setup guide](../docs/setup-virtualbox.md) |
+| Proxmox VM (standalone Docker) | amd64 / x86_64 | Verified | [Setup guide](../docs/setup-proxmox.md) |
 | *(Other platforms)* | | | *Report results in [GitHub Discussions](https://github.com/troon4891/HAButtPlugIO-PlayRooms/discussions)* |
 
 > These tables are maintained by the development team based on community reports. To add your platform, open a thread in [GitHub Discussions](https://github.com/troon4891/HAButtPlugIO-PlayRooms/discussions).

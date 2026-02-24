@@ -2,7 +2,7 @@
 
 ## About This Project
 
-HAButtPlugIO-PlayRooms is a Home Assistant add-on that bridges Buttplug.io / Intiface Engine with a Play Rooms system accessible via Share Links. Because it involves **physical device control** (intimate hardware via Buttplug.io), **external network access** (Share Links expose rooms outside the Home Assistant instance), and **real-time media streams** (WebRTC video/voice/webcam), security issues here can have real-world physical and privacy consequences beyond typical software vulnerabilities.
+HAButtPlugIO-PlayRooms bridges Buttplug.io / Intiface Engine with a Play Rooms system accessible via Share Links. It runs as a Home Assistant add-on or standalone Docker container. Because it involves **physical device control** (intimate hardware via Buttplug.io), **external network access** (Share Links expose rooms outside the local network), and **real-time media streams** (WebRTC video/voice/webcam), security issues here can have real-world physical and privacy consequences beyond typical software vulnerabilities.
 
 ## Supported Versions
 
@@ -10,7 +10,8 @@ This project is currently in **beta**. Security fixes are applied to the latest 
 
 | Version       | Supported          |
 | ------------- | ------------------ |
-| 1.0.x (beta)  | :white_check_mark: |
+| 2.0.x (beta)  | :white_check_mark: |
+| 1.x.x         | :x:                |
 | < 1.0.0       | :x:                |
 
 Once the project reaches a stable release, this table will be updated to reflect the long-term support policy.
@@ -46,6 +47,9 @@ The following categories are **in scope** for this project:
 
 ### Authentication & Session Integrity
 - Bypassing Home Assistant ingress authentication for host-side endpoints
+- JWT token theft, replay, or forgery in standalone mode
+- API key exposure, brute-force, or scope escalation
+- First-user setup race condition (exploiting the initial admin creation endpoint)
 - Session hijacking or fixation in Socket.IO connections
 - Cross-room data leakage (guest in Room A accessing Room B state)
 
