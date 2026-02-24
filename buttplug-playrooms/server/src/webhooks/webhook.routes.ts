@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { requireHost } from "../auth/middleware.js";
 import {
   createWebhook,
@@ -22,14 +22,14 @@ export const webhookRouter = Router({ mergeParams: true });
 webhookRouter.use(requireHost);
 
 // GET /api/rooms/:roomId/webhooks
-webhookRouter.get("/", (req, res) => {
+webhookRouter.get("/", (req: Request<{ roomId: string }>, res: Response) => {
   const hooks = listWebhooks(req.params.roomId);
   // Don't expose secrets in list view
   res.json(hooks.map((h) => ({ ...h, secret: undefined })));
 });
 
 // POST /api/rooms/:roomId/webhooks
-webhookRouter.post("/", (req, res) => {
+webhookRouter.post("/", (req: Request<{ roomId: string }>, res: Response) => {
   const userId = req.user?.sub ?? req.apiKeyUserId;
   if (!userId) {
     res.status(401).json({ error: "Authentication required" });
@@ -70,7 +70,7 @@ webhookRouter.post("/", (req, res) => {
 });
 
 // PATCH /api/rooms/:roomId/webhooks/:id
-webhookRouter.patch("/:id", (req, res) => {
+webhookRouter.patch("/:id", (req: Request<{ roomId: string; id: string }>, res: Response) => {
   const hook = getWebhook(req.params.id);
   if (!hook || hook.roomId !== req.params.roomId) {
     res.status(404).json({ error: "Webhook not found" });
@@ -115,7 +115,7 @@ webhookRouter.patch("/:id", (req, res) => {
 });
 
 // DELETE /api/rooms/:roomId/webhooks/:id
-webhookRouter.delete("/:id", (req, res) => {
+webhookRouter.delete("/:id", (req: Request<{ roomId: string; id: string }>, res: Response) => {
   const hook = getWebhook(req.params.id);
   if (!hook || hook.roomId !== req.params.roomId) {
     res.status(404).json({ error: "Webhook not found" });
@@ -127,7 +127,7 @@ webhookRouter.delete("/:id", (req, res) => {
 });
 
 // POST /api/rooms/:roomId/webhooks/:id/test
-webhookRouter.post("/:id/test", (req, res) => {
+webhookRouter.post("/:id/test", (req: Request<{ roomId: string; id: string }>, res: Response) => {
   const hook = getWebhook(req.params.id);
   if (!hook || hook.roomId !== req.params.roomId) {
     res.status(404).json({ error: "Webhook not found" });
