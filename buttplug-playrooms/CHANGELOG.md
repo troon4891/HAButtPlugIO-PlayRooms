@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-02-25 (UNTESTED)
+
+Major architectural change: PlayRoom Portal — a cloud-hosted relay server that allows
+guests to connect without exposing Home Assistant to the public internet.
+
+**Status**: Code written, not yet tested. See `docs/portal-plan/` for full documentation.
+
+### Added
+- **PlayRoom Portal mode**: Same Docker image runs as a lightweight relay server
+  when `PORTAL_MODE=true` is set. No Intiface Engine, no SQLite, no device control —
+  just a stateless Socket.IO message relay.
+- **HA outbound relay client**: HA add-on connects outbound to the portal via Socket.IO
+  client (`socket.io-client`). No port forwarding required on the user's home network.
+- **Multi-instance support**: Portal can serve multiple HA installations simultaneously
+  via instance ID prefix routing in compound share tokens.
+- **Relay protocol**: Full bidirectional relay protocol with typed envelopes
+  (`RelayUpstream`, `RelayDownstream`, `RelayBroadcast`), guest lifecycle events,
+  token validation forwarding, and application-level heartbeat.
+- **Portal relay namespace** (`/relay`): Authenticated Socket.IO namespace for HA
+  instance connections with shared secret authentication.
+- **Guest relay namespace**: Default Socket.IO namespace on portal for guest connections
+  with per-socket rate limiting (50 events/sec) and event allowlisting.
+- **Token validation proxy**: Portal's `GET /api/join/:token` forwards validation to HA
+  via relay channel with 30-second cache and 10-second timeout.
+- **Compound share tokens**: When portal is configured, share links include an 8-char
+  instance prefix (e.g., `a1b2c3d4_XkZ9mN7pQ2rT5wY8vU3sL`) for multi-instance routing.
+- **Portal URL in share links**: Client UI shows cloud icon and generates portal-domain
+  URLs when portal is configured.
+- **Graceful disconnection handling**: 60-second grace period when HA disconnects from
+  portal (configurable via `PORTAL_GRACE_PERIOD_MS`). Guest sockets stay connected
+  during brief HA outages.
+- **Relay bridge**: Dispatches portal relay events to existing HA service layer (lobby,
+  chat, toybox, webhooks) without modifying those services.
+- **Reconnection protocol**: Portal notifies HA of still-connected guests on reconnect;
+  HA auto-re-registers and re-approves them.
+- **Portal health endpoint**: `GET /api/health` returns connected instance count and
+  guest count; HA health endpoint includes `portalConnected` status.
+- **Portal info endpoint**: `GET /api/portal/info` on HA returns portal URL and instance
+  prefix for client share link construction.
+- **Dockerfile portal support**: `PORTAL_MODE=true` build arg skips Intiface Engine
+  download; runtime `PORTAL_MODE` env var switches behavior.
+
+### Changed
+- `config.yaml`: Added `portal_url` and `portal_secret` options
+- `config.ts`: Added `portalMode`, `portalUrl`, `portalSecret`, `portalInstanceId` fields
+  with auto-generated persistent instance ID
+- `run.sh`: Portal mode detection, portal env var exports
+- `index.ts`: Portal mode branch at startup; conditional relay client + bridge initialization
+- `share-links.ts`: Returns `portalUrl` and `portalToken` when portal is configured
+- `ShareLink.tsx`: Uses portal URL for share links with cloud icon indicator
+- `api.ts`: `ShareLink` type includes optional `portalUrl` and `portalToken` fields
+- `types/index.ts`: Added 10 relay protocol types and event allowlist
+- `package.json`: Added `socket.io-client@^4.8.0` dependency
+
+### Not Yet Implemented
+- WebRTC signaling relay (video chat, voice chat, webcam through portal) — Phase 6
+- TURN server integration for NAT traversal
+- Portal admin dashboard
+- `helmet` security headers on portal
+- Connection status indicators in guest UI
+- Event buffering during HA disconnect
+
+---
+
 ## [2.0.1] - 2026-02-25
 
 ### Fixed
