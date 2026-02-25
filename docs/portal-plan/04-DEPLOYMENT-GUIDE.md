@@ -1,10 +1,12 @@
 # Deployment Guide: PlayRoom Portal on a VPS
 
-How to deploy the PlayRoom Portal relay server on a cheap VPS.
+How to deploy the PlayRoom Portal relay server on a Namecheap VPS running Debian.
 
 ---
 
 ## VPS Requirements
+
+**Target:** Namecheap VPS with Debian 12 (Bookworm)
 
 | Resource | Minimum | Recommended | Notes |
 |----------|---------|-------------|-------|
@@ -12,7 +14,7 @@ How to deploy the PlayRoom Portal relay server on a cheap VPS.
 | **RAM** | 512 MB | 1 GB | Node.js ~50MB idle + ~50KB per Socket.IO connection |
 | **Storage** | 5 GB | 20 GB | App < 200MB, rest is OS + logs |
 | **Bandwidth** | 100 GB/month | 1000 GB/month | Small Socket.IO messages; WebRTC P2P bypasses portal |
-| **OS** | Linux (Debian/Ubuntu) | Ubuntu 22.04+ | Docker compatible |
+| **OS** | Debian 12 (Bookworm) | Debian 12 | Stable, minimal, Docker compatible |
 
 ### Capacity Estimate (1GB RAM VPS)
 
@@ -33,17 +35,47 @@ CPU is not the bottleneck — Socket.IO event forwarding is I/O-bound. A single 
 
 ---
 
-## Recommended VPS Providers
+## VPS Provider: Namecheap
 
-| Provider | Plan | Price | Specs |
-|----------|------|-------|-------|
-| Hetzner Cloud CX22 | Cloud | ~$4/month | 2 CPU, 4GB RAM, 40GB SSD |
-| DigitalOcean | Basic Droplet | $4-6/month | 1 CPU, 1GB RAM, 25GB SSD |
-| Vultr | Cloud Compute | $5/month | 1 CPU, 1GB RAM, 25GB SSD |
-| OVH | Starter VPS | ~$4/month | 1 CPU, 2GB RAM, 20GB SSD |
-| Linode (Akamai) | Nanode 1GB | $5/month | 1 CPU, 1GB RAM, 25GB SSD |
-| Railway | Starter | ~$5/month | Auto-scaled |
-| Fly.io | Machines | Free tier / ~$5/month | Auto-scaled |
+The portal is deployed on a **Namecheap VPS** running **Debian 12**.
+
+### Initial VPS Setup (Debian 12)
+
+After provisioning your Namecheap VPS with Debian 12:
+
+```bash
+# Update system
+apt update && apt upgrade -y
+
+# Install essential tools
+apt install -y curl wget git ufw
+
+# Set up firewall
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow ssh
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw enable
+
+# Install Docker (official method for Debian)
+apt install -y ca-certificates gnupg
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+apt update
+apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Verify Docker
+docker --version
+docker compose version
+```
 
 ---
 
@@ -72,14 +104,11 @@ docker tag playrooms-portal ghcr.io/yourusername/playrooms-portal:latest
 docker push ghcr.io/yourusername/playrooms-portal:latest
 ```
 
-### Step 3: Deploy on VPS
+### Step 3: Deploy on Namecheap VPS
 
-SSH into your VPS:
+SSH into your Debian VPS (Docker should already be installed from the setup above):
 
 ```bash
-# Install Docker if not already
-curl -fsSL https://get.docker.com | sh
-
 # Pull and run
 docker run -d \
   --name playrooms-portal \
@@ -342,16 +371,23 @@ WantedBy=multi-user.target
 
 ---
 
-## Firewall Configuration
+## Firewall Configuration (Debian)
 
-The portal only needs one port open:
+The portal only needs HTTP/HTTPS ports open. If you followed the initial VPS setup above, the firewall is already configured. Otherwise:
 
 ```bash
-# UFW (Ubuntu)
+# Install UFW on Debian
+apt install -y ufw
+
+# Configure
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow ssh
 ufw allow 80/tcp    # HTTP (for Let's Encrypt + redirect)
 ufw allow 443/tcp   # HTTPS + WSS
 # OR if no reverse proxy:
 ufw allow 8080/tcp  # Direct portal access
+ufw enable
 
 # No other ports needed
 # The portal does not need to reach back into the user's home network

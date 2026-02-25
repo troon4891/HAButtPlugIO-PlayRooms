@@ -102,6 +102,8 @@ It does NOT:
 
 ## VPS Requirements
 
+**Target platform:** Namecheap VPS running Debian 12 (Bookworm)
+
 The portal is extremely lightweight. A minimal VPS is more than sufficient:
 
 | Resource | Minimum | Why |
@@ -110,16 +112,13 @@ The portal is extremely lightweight. A minimal VPS is more than sufficient:
 | **RAM** | 1 GB | Node.js idle: ~30-50MB. Each Socket.IO connection: ~50KB. OS overhead: ~200-300MB. Leaves ~700MB for ~1000+ concurrent guests |
 | **Storage** | 5 GB (20 GB typical VPS) | Node.js app + dependencies < 200MB. No database files. Logs are the main consumer |
 | **Bandwidth** | 100 GB/month minimum | Socket.IO messages are small (device commands, chat, state updates). WebRTC video/voice goes P2P directly between browsers, does NOT transit the portal |
+| **OS** | Debian 12 (Bookworm) | Stable, minimal, well-supported, Docker compatible |
 
-### Cost Estimate
+### Recommended: Namecheap VPS
 
-Typical cheap VPS plans that work:
-
-- **DigitalOcean Basic Droplet**: $4-6/month (1 CPU, 1GB RAM, 25GB SSD)
-- **Hetzner Cloud CX22**: ~$4/month (2 CPU, 4GB RAM, 40GB SSD)
-- **Vultr Cloud Compute**: $5/month (1 CPU, 1GB RAM, 25GB SSD)
-- **OVH Starter VPS**: ~$4/month (1 CPU, 2GB RAM, 20GB SSD)
-- **Railway / Fly.io**: Free tier may work for light use; ~$5/month for consistent use
+- **Namecheap Quasar VPS** (or equivalent entry-level plan): 1 CPU, 1GB RAM, 20GB SSD, 1000GB bandwidth
+- Select **Debian 12** as the base OS during VPS provisioning
+- Cost: ~$4-8/month
 
 ### Why So Lightweight?
 
