@@ -98,6 +98,8 @@ The source code for all phases exists and compiles (TypeScript errors fixed in v
 | v1.0.9 | 2026-02-22 | Fix | Fixed `apt-get update` clock skew failures on HA systems |
 | v1.0.10 | 2026-02-22 | Fix | Additional apt clock skew fix (`Check-Date=false`) |
 | v1.0.11 | 2026-02-22 | Fix | Fixed blank page under HA ingress (server-side base injection, relative asset paths, ingress-aware routing/API/socket) |
+| v2.0.0 | 2026-02-24 | Feature | Standalone Docker mode, user auth, guest tiers, API keys, webhooks, security hardening |
+| v2.0.1 | 2026-02-25 | Fix | Fixed device broadcast, guest permission checks, host approval flow, PWA icons, wired up orphaned components |
 
 ---
 
@@ -122,21 +124,23 @@ The source code for all phases exists and compiles (TypeScript errors fixed in v
 
 ## Known Issues
 
-- **room.socket.ts**: Device state broadcast only emits first device (`devices[0]`), should iterate all
-- **room.socket.ts**: No room-level permission checks on guest device commands
-- **room.socket.ts**: Guest join listener only registered in challenge mode branch, not open mode
-- **Icons**: Vite config references `.png` icons but actual files are `.svg`
-- **RoomConfig / ShareLink components**: Built but not imported into any pages (orphaned)
-- **Lobby codes**: Stored in-memory, lost on server restart
+- **Lobby codes**: Stored in-memory, lost on server restart (challenge codes in DB since v2.0.0, but lobby state is still in-memory)
+
+### Fixed in v2.0.1
+- ~~**room.socket.ts**: Device state broadcast only emits first device (`devices[0]`), should iterate all~~
+- ~~**room.socket.ts**: No room-level permission checks on guest device commands~~
+- ~~**room.socket.ts**: Guest join listener only registered in challenge mode branch, not open mode~~
+- ~~**Icons**: Vite config references `.png` icons but actual files are `.svg`~~
+- ~~**RoomConfig / ShareLink components**: Built but not imported into any pages (orphaned)~~
 
 ---
 
 ## Next Objectives
 
 - [ ] Verify the interface actually renders (Dashboard, Room views, Lobby)
-- [ ] Fix known Socket.IO room bugs (device broadcast, permissions, open-mode join)
-- [ ] Wire up orphaned RoomConfig and ShareLink components
-- [ ] Fix icon format mismatch (SVG → PNG or update vite config)
+- [x] Fix known Socket.IO room bugs (device broadcast, permissions, open-mode join) — **v2.0.1**
+- [x] Wire up orphaned RoomConfig and ShareLink components — **v2.0.1**
+- [x] Fix icon format mismatch (SVG → PNG or update vite config) — **v2.0.1**
 - [ ] Test full guest flow: Share Link → Lobby → Room → Widgets
 - [ ] Implement room layout editor (remaining Phase 8 item)
 - [ ] Create proper add-on icons (icon.png 128x128, logo.png 256x256)

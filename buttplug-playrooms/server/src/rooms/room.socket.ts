@@ -15,6 +15,8 @@ type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 // Track host sockets per room
 const hostSockets = new Map<string, string>(); // roomId -> socketId
+// Track guest sockets for host-approval flow
+const guestSockets = new Map<string, { socket: IOSocket; roomId: string; name: string }>(); // guestId -> info
 
 function verifyHostConnection(socket: IOSocket): boolean {
   if (config.authMode === "ha-ingress") {
@@ -33,10 +35,34 @@ function verifyHostConnection(socket: IOSocket): boolean {
   return payload !== null;
 }
 
+// Join a guest socket into the room after approval
+function finalizeGuestJoin(io: IOServer, socket: IOSocket, roomId: string, guestId: string, name: string): void {
+  lobby.markGuestJoined(guestId, socket.id);
+  socket.join(`room:${roomId}`);
+  io.to(`room:${roomId}`).emit("guest:joined", { guestId, name });
+  socket.emit("guest:approved", { guestId });
+  dispatchEvent(roomId, "guest:joined", { guestId, name });
+
+  // Send recent chat history
+  const messages = chatService.getRecentMessages(roomId, 50);
+  for (const msg of messages) {
+    socket.emit("chat:message", msg);
+  }
+
+  // Setup media signaling
+  mediaSignaling.addParticipant(roomId, guestId, socket.id, name);
+  mediaSignaling.setupMediaSignaling(io, socket, roomId, guestId);
+
+  // Clean up guest socket tracking (no longer pending)
+  guestSockets.delete(guestId);
+}
+
 export function setupRoomSockets(io: IOServer): void {
-  // Broadcast device state changes to all rooms
+  // Broadcast device state changes to all connected clients
   onDevicesChanged((devices) => {
-    io.emit("device:state", devices[0]); // emit each device individually
+    for (const device of devices) {
+      io.emit("device:state", device);
+    }
   });
 
   io.on("connection", (socket: IOSocket) => {
@@ -93,13 +119,28 @@ function handleHostConnection(io: IOServer, socket: IOSocket, roomId: string): v
   // Host lobby management
   socket.on("lobby:approve", (data) => {
     if (lobby.approveGuest(data.guestId)) {
-      io.to(`room:${roomId}`).emit("guest:approved", { guestId: data.guestId });
-      dispatchEvent(roomId, "guest:approved", { guestId: data.guestId });
+      // Find the pending guest's socket and join them to the room
+      const guestInfo = guestSockets.get(data.guestId);
+      if (guestInfo) {
+        finalizeGuestJoin(io, guestInfo.socket, roomId, data.guestId, guestInfo.name);
+        dispatchEvent(roomId, "guest:approved", { guestId: data.guestId, name: guestInfo.name });
+      } else {
+        // Guest socket not found (may have disconnected)
+        io.to(`room:${roomId}`).emit("guest:approved", { guestId: data.guestId });
+        dispatchEvent(roomId, "guest:approved", { guestId: data.guestId });
+      }
     }
   });
 
   socket.on("lobby:reject", (data) => {
     lobby.rejectGuest(data.guestId);
+    // Notify the guest they were rejected and disconnect them
+    const guestInfo = guestSockets.get(data.guestId);
+    if (guestInfo) {
+      guestInfo.socket.emit("error", { message: "Your request to join was rejected" });
+      guestInfo.socket.disconnect();
+      guestSockets.delete(data.guestId);
+    }
     dispatchEvent(roomId, "guest:rejected", { guestId: data.guestId });
   });
 
@@ -144,49 +185,42 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
 
   console.log(`[Room ${roomId}] Guest "${name}" (${guestId}) connecting`);
 
-  // If open mode, auto-approve
+  // If open mode, auto-approve and join immediately
   if (linkResult.room.accessMode === "open") {
-    lobby.markGuestJoined(guestId, socket.id);
-    socket.join(`room:${roomId}`);
-    io.to(`room:${roomId}`).emit("guest:joined", { guestId, name });
-    socket.emit("guest:approved", { guestId });
-    dispatchEvent(roomId, "guest:joined", { guestId, name });
-
-    // Send recent chat history
-    const messages = chatService.getRecentMessages(roomId, 50);
-    for (const msg of messages) {
-      socket.emit("chat:message", msg);
-    }
-
-    // Setup media signaling
-    mediaSignaling.addParticipant(roomId, guestId, socket.id, name);
-    mediaSignaling.setupMediaSignaling(io, socket, roomId, guestId);
+    finalizeGuestJoin(io, socket, roomId, guestId, name);
   } else {
-    // Challenge mode — notify host
+    // Challenge mode — track socket for host-approval flow
+    guestSockets.set(guestId, { socket, roomId, name });
+
+    // Notify host of pending guest
     const hostSocketId = hostSockets.get(roomId);
     if (hostSocketId) {
       io.to(hostSocketId).emit("lobby:pending", { guestId, name, code });
     }
 
-    // Listen for approval
+    // Listen for code-based verification from the guest
     socket.on("guest:join", (data) => {
       if (data.code && lobby.verifyChallengeCode(guestId, data.code)) {
         lobby.approveGuest(guestId);
-        lobby.markGuestJoined(guestId, socket.id);
-        socket.join(`room:${roomId}`);
-        io.to(`room:${roomId}`).emit("guest:joined", { guestId, name });
-        socket.emit("guest:approved", { guestId });
-        dispatchEvent(roomId, "guest:joined", { guestId, name });
+        finalizeGuestJoin(io, socket, roomId, guestId, name);
         dispatchEvent(roomId, "guest:approved", { guestId, name });
-
-        mediaSignaling.addParticipant(roomId, guestId, socket.id, name);
-        mediaSignaling.setupMediaSignaling(io, socket, roomId, guestId);
       }
     });
   }
 
-  // Guest device commands (if allowed by room config)
+  // Guest device commands — verify device is assigned to this room
   socket.on("device:command", async (cmd) => {
+    // Check that the target device is assigned to this guest's room
+    const roomDevices = toyboxService.getDevicesForRoom(roomId);
+    const deviceAllowed = roomDevices.some(
+      (d) => d.id === cmd.deviceId || String(d.buttplugIndex) === cmd.deviceId
+    );
+
+    if (!deviceAllowed) {
+      socket.emit("error", { message: "Device not assigned to this room" });
+      return;
+    }
+
     try {
       await toyboxService.sendDeviceCommand(cmd);
       dispatchEvent(roomId, "command:sent", { ...cmd, guestId, guestName: name });
@@ -206,6 +240,7 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
     console.log(`[Room ${roomId}] Guest "${name}" (${guestId}) disconnected`);
     lobby.markGuestDisconnected(socket.id);
     mediaSignaling.removeParticipant(roomId, guestId);
+    guestSockets.delete(guestId);
     io.to(`room:${roomId}`).emit("guest:left", { guestId });
     dispatchEvent(roomId, "guest:left", { guestId, name });
   });
