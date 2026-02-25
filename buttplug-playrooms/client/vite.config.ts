@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icons/icon-192.png", "icons/icon-512.png"],
+      includeAssets: ["icons/icon-192.svg", "icons/icon-512.svg"],
       manifest: {
         name: "PlayRooms",
         short_name: "PlayRooms",
@@ -19,14 +19,14 @@ export default defineConfig({
         start_url: ".",
         icons: [
           {
-            src: "icons/icon-192.png",
+            src: "icons/icon-192.svg",
             sizes: "192x192",
-            type: "image/png",
+            type: "image/svg+xml",
           },
           {
-            src: "icons/icon-512.png",
+            src: "icons/icon-512.svg",
             sizes: "512x512",
-            type: "image/png",
+            type: "image/svg+xml",
           },
         ],
       },

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-02-25
+
+### Fixed
+- **Device broadcast**: Device state changes now emit all devices instead of only the first
+- **Guest device permissions**: Guest device commands now verify the device is assigned to
+  the guest's room before allowing control (prevents cross-room device access)
+- **Host approval flow**: Guests in challenge/approval mode now properly join the room when
+  approved by the host (previously the guest socket never joined the room or received
+  chat history/media signaling after host approval)
+- **Rejected guests**: Guests rejected by the host now receive an error message and are
+  disconnected instead of silently hanging
+- **PWA icons**: Fixed icon format mismatch — manifest now references the actual `.svg` files
+  instead of non-existent `.png` files
+- **Orphaned components**: Wired up `RoomConfig` and `ShareLink` components into the
+  `RoomHost` page (were built but never imported)
+
+### Changed
+- Extracted duplicate guest-join logic into shared `finalizeGuestJoin` helper
+- `RoomHost` page now uses dedicated `RoomConfig` component for room settings
+  (accessible via "Room Settings" button in header)
+- `RoomHost` page now uses dedicated `ShareLink` component for share link management
+  with create, copy, and revoke support
+
+---
+
 ## [2.0.0] - 2026-02-24
 
 Forked from [HAButtPlugIO-PlayRooms](<!-- REPO_URL_PLACEHOLDER -->).

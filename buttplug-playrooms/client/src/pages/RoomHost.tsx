@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Share2, Users, Copy, Check } from "lucide-react";
+import { ArrowLeft, Users, Settings } from "lucide-react";
 import { rooms, share, type Room, type ShareLink as ShareLinkType } from "../lib/api";
-import { basePath } from "../lib/ingress";
 import { useSocket } from "../hooks/useSocket";
 import { useButtplug } from "../hooks/useButtplug";
 import ToyBox from "../components/widgets/ToyBox";
@@ -11,6 +10,8 @@ import WebCam from "../components/widgets/WebCam";
 import VideoChat from "../components/widgets/VideoChat";
 import VoiceChat from "../components/widgets/VoiceChat";
 import RoomLayout from "../components/room/RoomLayout";
+import RoomConfig from "../components/room/RoomConfig";
+import ShareLink from "../components/room/ShareLink";
 
 interface Guest {
   id: string;
@@ -23,7 +24,7 @@ export default function RoomHost() {
   const [shareLinks, setShareLinks] = useState<ShareLinkType[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [pendingGuests, setPendingGuests] = useState<Array<{ guestId: string; name: string; code?: string }>>([]);
-  const [copied, setCopied] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const { socket, connected } = useSocket({ roomId: id!, isHost: true });
@@ -79,22 +80,6 @@ export default function RoomHost() {
     }
   }
 
-  async function handleCreateShareLink() {
-    if (!id) return;
-    const link = await share.create(id);
-    setShareLinks((prev) => [...prev, link]);
-  }
-
-  function getShareUrl(token: string): string {
-    return `${window.location.origin}${basePath}/join/${token}`;
-  }
-
-  async function copyShareLink(token: string) {
-    await navigator.clipboard.writeText(getShareUrl(token));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
   function approveGuest(guestId: string) {
     socket?.emit("lobby:approve", { guestId });
     setPendingGuests((prev) => prev.filter((g) => g.guestId !== guestId));
@@ -135,27 +120,22 @@ export default function RoomHost() {
           </div>
         </div>
 
-        <button onClick={handleCreateShareLink} className="btn-primary flex items-center gap-2">
-          <Share2 className="w-4 h-4" /> Share
+        <button onClick={() => setShowConfig(!showConfig)} className="btn-secondary flex items-center gap-2">
+          <Settings className="w-4 h-4" /> {showConfig ? "Close Settings" : "Room Settings"}
         </button>
       </header>
 
-      {/* Share Links */}
-      {shareLinks.length > 0 && (
-        <div className="card mb-4">
-          <h3 className="text-sm font-medium text-slate-300 mb-2">Share Links</h3>
-          <div className="space-y-2">
-            {shareLinks.map((link) => (
-              <div key={link.id} className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2 text-sm">
-                <code className="flex-1 truncate text-slate-300">{getShareUrl(link.token)}</code>
-                <button onClick={() => copyShareLink(link.token)} className="text-primary-400 hover:text-primary-300">
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </button>
-              </div>
-            ))}
-          </div>
+      {/* Room Config Panel */}
+      {showConfig && (
+        <div className="mb-4">
+          <RoomConfig room={room} onSave={(updated) => { setRoom(updated); setShowConfig(false); }} />
         </div>
       )}
+
+      {/* Share Links */}
+      <div className="mb-4">
+        <ShareLink roomId={id!} links={shareLinks} onLinksChange={setShareLinks} />
+      </div>
 
       {/* Pending Guests (Challenge Mode) */}
       {pendingGuests.length > 0 && (
