@@ -19,12 +19,15 @@ RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false upd
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install Intiface Engine (amd64 only)
-RUN wget -q -O /tmp/intiface-engine.zip \
-      "https://github.com/intiface/intiface-engine/releases/download/${INTIFACE_ENGINE_VERSION}/intiface-engine-linux-x64-Release.zip" && \
-    unzip -o /tmp/intiface-engine.zip intiface-engine -d /usr/local/bin/ && \
-    chmod +x /usr/local/bin/intiface-engine && \
-    rm /tmp/intiface-engine.zip && \
+# Download and install Intiface Engine (amd64 only, skipped in portal mode)
+ARG PORTAL_MODE=false
+RUN if [ "$PORTAL_MODE" = "false" ]; then \
+      wget -q -O /tmp/intiface-engine.zip \
+        "https://github.com/intiface/intiface-engine/releases/download/${INTIFACE_ENGINE_VERSION}/intiface-engine-linux-x64-Release.zip" && \
+      unzip -o /tmp/intiface-engine.zip intiface-engine -d /usr/local/bin/ && \
+      chmod +x /usr/local/bin/intiface-engine && \
+      rm /tmp/intiface-engine.zip; \
+    fi && \
     apt-get purge -y unzip && apt-get autoremove -y
 
 # Copy and build server
@@ -53,5 +56,8 @@ RUN npm prune --omit=dev
 
 COPY run.sh /
 RUN chmod +x /run.sh
+
+# Portal mode env var (set to "true" to run as relay portal)
+ENV PORTAL_MODE=false
 
 CMD ["/run.sh"]

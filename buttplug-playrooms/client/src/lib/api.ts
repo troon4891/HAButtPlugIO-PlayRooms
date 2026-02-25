@@ -80,6 +80,8 @@ export interface ShareLink {
   active: number;
   expiresAt: number | null;
   createdAt: number;
+  portalUrl?: string | null;
+  portalToken?: string | null;
 }
 
 export interface RoomPublicInfo {

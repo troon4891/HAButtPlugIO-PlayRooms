@@ -1,3 +1,14 @@
+import { config } from "./config.js";
+
+// Portal mode: start the lightweight relay server instead
+if (config.portalMode) {
+  const { startPortalServer } = await import("./portal/index.js");
+  await startPortalServer();
+  // Portal mode handles its own lifecycle, so we stop here
+  // eslint-disable-next-line no-constant-condition
+  while (true) await new Promise((r) => setTimeout(r, 1_000_000));
+}
+
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
@@ -6,7 +17,6 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { existsSync, readFileSync } from "fs";
 
-import { config } from "./config.js";
 import { runMigrations } from "./db/migrate.js";
 import { startEngine, stopEngine } from "./buttplug/engine.js";
 import { connectClient, startScanning, isConnected, getDeviceStates } from "./buttplug/client.js";
@@ -23,6 +33,9 @@ import { startCleanupInterval, stopCleanupInterval } from "./auth/cleanup.js";
 import { dispatchEvent } from "./webhooks/webhook.service.js";
 
 import type { ServerToClientEvents, ClientToServerEvents, GuestType } from "./types/index.js";
+
+// Relay client reference for health check (set during startup if portal is configured)
+let relayClientRef: typeof import("./portal/relay-client.js") | null = null;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -136,15 +149,36 @@ app.get("/api/join/:token", rateLimiter(60_000, 20, "share-validate"), (req, res
   });
 });
 
+// Portal info endpoint (used by client to construct portal share links)
+app.get("/api/portal/info", requireHost, (_req, res) => {
+  res.json({
+    enabled: !!(config.portalUrl && config.portalSecret),
+    url: config.portalUrl?.replace("ws://", "http://").replace("wss://", "https://") ?? null,
+    instancePrefix: config.portalInstanceId.substring(0, 8),
+  });
+});
+
 // Health check
 app.get("/api/health", (_req, res) => {
-  res.json({
+  const result: Record<string, unknown> = {
     status: "ok",
     buttplug: isConnected(),
     version: "2.0.1",
     transports: config.transports,
     authMode: config.authMode,
-  });
+  };
+
+  if (config.portalUrl) {
+    try {
+      // Dynamic import is cached after first load, so this is effectively synchronous after startup
+      const relayClientModule = relayClientRef;
+      result.portalConnected = relayClientModule?.isRelayConnected() ?? false;
+    } catch {
+      result.portalConnected = false;
+    }
+  }
+
+  res.json(result);
 });
 
 // SPA fallback — serve index.html with HA ingress path injection
@@ -203,6 +237,25 @@ async function start(): Promise<void> {
     } catch (err) {
       console.warn("[PlayRooms] Buttplug client connection failed:", (err as Error).message);
       console.warn("[PlayRooms] Device features will be unavailable until connected");
+    }
+  }
+
+  // Connect to portal relay if configured
+  if (config.portalUrl && config.portalSecret) {
+    console.log(`[PlayRooms] Connecting to portal: ${config.portalUrl}`);
+    try {
+      const relayClientModule = await import("./portal/relay-client.js");
+      relayClientRef = relayClientModule;
+      await relayClientModule.connectToPortal(io);
+      console.log("[PlayRooms] Portal relay connected");
+
+      // Setup relay bridge to dispatch relay events to services
+      const { setupRelayBridge } = await import("./portal/relay-bridge.js");
+      setupRelayBridge(io);
+      console.log("[PlayRooms] Relay bridge initialized");
+    } catch (err) {
+      console.warn("[PlayRooms] Portal connection failed:", (err as Error).message);
+      console.warn("[PlayRooms] Continuing without portal relay...");
     }
   }
 

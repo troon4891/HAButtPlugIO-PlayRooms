@@ -26,6 +26,8 @@ options:
   use_bluetooth: false
   use_serial: false
   use_hid: false
+  portal_url: ""
+  portal_secret: ""
 schema:
   intiface_port: "int(1024,65535)"
   server_port: "int(1024,65535)"
@@ -33,3 +35,5 @@ schema:
   use_bluetooth: bool
   use_serial: bool
   use_hid: bool
+  portal_url: "str?"
+  portal_secret: "str?"

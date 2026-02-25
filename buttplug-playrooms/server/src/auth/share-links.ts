@@ -2,14 +2,16 @@ import { v4 as uuidv4 } from "uuid";
 import { nanoid } from "nanoid";
 import { eq, and, lt } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
+import { config } from "../config.js";
 import type { GuestType } from "../types/index.js";
 
 export function createShareLink(roomId: string, expiresInMs?: number, guestType: GuestType = "short") {
   const now = Date.now();
+  const originalToken = nanoid(21);
   const link = {
     id: uuidv4(),
     roomId,
-    token: nanoid(21),
+    token: originalToken,
     active: 1,
     guestType,
     expiresAt: expiresInMs ? now + expiresInMs : null,
@@ -17,7 +19,20 @@ export function createShareLink(roomId: string, expiresInMs?: number, guestType:
   };
 
   db.insert(schema.shareLinks).values(link).run();
-  return link;
+
+  // If portal is configured, include portal URL info in the response
+  const portalUrl = config.portalUrl && config.portalSecret
+    ? config.portalUrl.replace("ws://", "http://").replace("wss://", "https://")
+    : null;
+  const portalToken = portalUrl
+    ? `${config.portalInstanceId.substring(0, 8)}_${originalToken}`
+    : null;
+
+  return {
+    ...link,
+    portalUrl,
+    portalToken,
+  };
 }
 
 export function validateShareLink(token: string) {

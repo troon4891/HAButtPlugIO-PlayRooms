@@ -20,6 +20,11 @@ interface AppConfig {
   lockoutThreshold: number;
   lockoutDurationMs: number;
   corsOrigins: string; // comma-separated or "*"
+  // Portal configuration
+  portalMode: boolean;          // true = run as portal relay server
+  portalUrl: string | null;     // URL of portal to connect to (HA mode)
+  portalSecret: string | null;  // shared secret for relay auth
+  portalInstanceId: string;     // unique ID for this HA instance
 }
 
 function parseBool(value: unknown, envFallback: string | undefined, defaultVal: boolean): boolean {
@@ -49,6 +54,22 @@ function getOrCreateJwtSecret(dataDir: string): string {
   return secret;
 }
 
+function getOrCreateInstanceId(dataDir: string): string {
+  if (process.env.PORTAL_INSTANCE_ID) return process.env.PORTAL_INSTANCE_ID;
+
+  const idPath = join(dataDir, ".portal-instance-id");
+  if (existsSync(idPath)) {
+    return readFileSync(idPath, "utf-8").trim();
+  }
+
+  const id = randomBytes(16).toString("hex");
+  if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true });
+  }
+  writeFileSync(idPath, id, { mode: 0o600 });
+  return id;
+}
+
 function loadConfig(): AppConfig {
   // Try reading HA add-on options first
   const optionsPath = "/data/options.json";
@@ -69,9 +90,13 @@ function loadConfig(): AppConfig {
   const authMode: AuthMode = (process.env.AUTH_MODE as AuthMode) ??
     (isHaMode ? "ha-ingress" : "standalone");
 
+  const portalMode = parseBool(undefined, process.env.PORTAL_MODE, false);
+  const portalUrl = (haOptions.portal_url as string) || process.env.PORTAL_URL || null;
+  const portalSecret = (haOptions.portal_secret as string) || process.env.PORTAL_SECRET || process.env.RELAY_SECRET || null;
+
   return {
     intifacePort: Number(haOptions.intiface_port ?? process.env.INTIFACE_PORT ?? 12345),
-    serverPort: Number(haOptions.server_port ?? process.env.SERVER_PORT ?? 8099),
+    serverPort: Number(haOptions.server_port ?? process.env.SERVER_PORT ?? (portalMode ? 8080 : 8099)),
     scanOnStart: parseBool(haOptions.scan_on_start, process.env.SCAN_ON_START, false),
     dataDir,
     transports: {
@@ -80,10 +105,14 @@ function loadConfig(): AppConfig {
       hid: parseBool(haOptions.use_hid, process.env.USE_HID, false),
     },
     authMode,
-    jwtSecret: getOrCreateJwtSecret(dataDir),
+    jwtSecret: portalMode ? "portal-mode" : getOrCreateJwtSecret(dataDir),
     lockoutThreshold: Number(process.env.LOCKOUT_THRESHOLD ?? 5),
     lockoutDurationMs: Number(process.env.LOCKOUT_DURATION_MS ?? 15 * 60 * 1000),
-    corsOrigins: process.env.CORS_ORIGINS ?? (authMode === "ha-ingress" ? "*" : ""),
+    corsOrigins: process.env.CORS_ORIGINS ?? (portalMode ? "*" : (authMode === "ha-ingress" ? "*" : "")),
+    portalMode,
+    portalUrl,
+    portalSecret,
+    portalInstanceId: portalMode ? "portal" : getOrCreateInstanceId(dataDir),
   };
 }
 

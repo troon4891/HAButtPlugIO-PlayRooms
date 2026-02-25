@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link2, Copy, Check, Trash2 } from "lucide-react";
+import { Link2, Copy, Check, Trash2, Cloud } from "lucide-react";
 import { share, type ShareLink as ShareLinkType } from "../../lib/api";
 import { basePath } from "../../lib/ingress";
 
@@ -7,6 +7,13 @@ interface ShareLinkProps {
   roomId: string;
   links: ShareLinkType[];
   onLinksChange: (links: ShareLinkType[]) => void;
+}
+
+function getShareUrl(link: ShareLinkType): string {
+  if (link.portalUrl && link.portalToken) {
+    return `${link.portalUrl}/join/${link.portalToken}`;
+  }
+  return `${window.location.origin}${basePath}/join/${link.token}`;
 }
 
 export default function ShareLink({ roomId, links, onLinksChange }: ShareLinkProps) {
@@ -22,10 +29,10 @@ export default function ShareLink({ roomId, links, onLinksChange }: ShareLinkPro
     onLinksChange(links.filter((l) => l.token !== token));
   }
 
-  async function handleCopy(token: string) {
-    const url = `${window.location.origin}${basePath}/join/${token}`;
+  async function handleCopy(link: ShareLinkType) {
+    const url = getShareUrl(link);
     await navigator.clipboard.writeText(url);
-    setCopied(token);
+    setCopied(link.token);
     setTimeout(() => setCopied(null), 2000);
   }
 
@@ -46,10 +53,13 @@ export default function ShareLink({ roomId, links, onLinksChange }: ShareLinkPro
         <div className="space-y-2">
           {links.map((link) => (
             <div key={link.id} className="flex items-center gap-2 bg-slate-700/50 rounded-lg px-3 py-2">
+              {link.portalUrl && (
+                <Cloud className="w-4 h-4 text-sky-400 flex-shrink-0" title="Via Portal" />
+              )}
               <code className="flex-1 text-xs truncate text-slate-300">
-                {window.location.origin}{basePath}/join/{link.token}
+                {getShareUrl(link)}
               </code>
-              <button onClick={() => handleCopy(link.token)} className="text-primary-400 hover:text-primary-300 p-1">
+              <button onClick={() => handleCopy(link)} className="text-primary-400 hover:text-primary-300 p-1">
                 {copied === link.token ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </button>
               <button onClick={() => handleRevoke(link.token)} className="text-red-400 hover:text-red-300 p-1">
