@@ -19,6 +19,7 @@ PlayRooms can run as a **Home Assistant add-on** (using HA's built-in authentica
 - **Play Rooms** — customizable spaces with a host/guest model supporting 1-4 guests
 - **Share Links** — generated URLs for external guest access with open or challenge-based entry
 - **Toy Box** — Buttplug.io device controls with intensity sliders, presets, and quick buttons
+- **Device Safety** — engine lifecycle control, device approval whitelist, and protocol filtering prevent unintended device connections
 - **Web Cam** — host-only one-way webcam streaming to guests via WebRTC
 - **Video Chat** — multi-participant video wall (up to 4 guests) with optional host video
 - **Voice Chat** — push-to-talk or open mic voice communication via WebRTC
@@ -60,9 +61,9 @@ Tested platform documentation for running PlayRooms as a standalone Docker conta
 
 | Platform | Guide | Status |
 |----------|-------|--------|
+| Home Assistant Supervisor | [Setup Guide](docs/setup-home_assistant_supervisor.md) | ✅ Primary platform |
 | VirtualBox | [Setup Guide](docs/setup-virtualbox.md) | ✅ Tested |
 | Proxmox VE | [Setup Guide](docs/setup-proxmox.md) | ✅ Tested |
-| Home Assistant | See [Home Assistant Add-on](#home-assistant-add-on) above | ✅ Primary platform |
 
 > These guides cover everything from VM creation to running container, including USB/Bluetooth hardware passthrough — critical for device access.
 
@@ -72,7 +73,7 @@ Tested platform documentation for running PlayRooms as a standalone Docker conta
 |--------|---------|-------------|
 | `intiface_port` | `12345` | WebSocket port for the Intiface Engine server |
 | `server_port` | `8099` | HTTP port for the PlayRooms web server |
-| `scan_on_start` | `false` | Automatically scan for Buttplug.io devices on startup |
+| `scan_on_start` | `false` | Auto-start engine and scan for devices on boot (if `false`, host starts engine manually from Settings) |
 | `use_bluetooth` | `false` | Enable Bluetooth LE device scanning* |
 | `use_serial` | `false` | Enable serial port device scanning* |
 | `use_hid` | `false` | Enable USB HID device scanning* |

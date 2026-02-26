@@ -55,7 +55,7 @@ Real-time text messaging between host and guests within the Play Room, with mess
 |--------|---------|-------------|
 | `intiface_port` | `12345` | WebSocket port for the Intiface Engine server |
 | `server_port` | `8099` | HTTP port for the PlayRooms web server |
-| `scan_on_start` | `false` | Automatically scan for devices on startup |
+| `scan_on_start` | `false` | Auto-start engine and scan for devices on boot (if `false`, host starts engine manually from Settings) |
 | `use_bluetooth` | `false` | Enable Bluetooth LE device scanning* |
 | `use_serial` | `false` | Enable serial port device scanning* |
 | `use_hid` | `false` | Enable USB HID device scanning* |
@@ -126,16 +126,55 @@ Guests must either:
 - **Code**: Enter a 6-digit code displayed to the host
 - **Approval**: Wait for the host to manually approve their entry
 
+## Device Safety (v3.1.0)
+
+PlayRooms includes a three-pillar device safety system to prevent the engine from auto-connecting to every compatible Bluetooth device in range (e.g., a neighbor's device).
+
+### Engine Lifecycle Control
+
+The Intiface Engine no longer auto-starts on boot (unless `scan_on_start` is `true`). The host starts and stops the engine manually from the **Settings** page:
+
+- **Start Engine** — launches the Intiface Engine process and connects the Buttplug client
+- **Stop Engine** — disconnects the client and kills the engine process
+- **Scan for Devices** — only available when the engine is running
+
+This gives the host full control over when the engine is active and scanning for devices.
+
+### Device Approval Whitelist
+
+When devices are discovered via scanning, they are **not** automatically available for room assignment. Instead:
+
+1. Discovered devices appear in a **"Discovered Devices"** section in Settings with their approval status
+2. **Pending** devices get Approve / Deny buttons — the host decides which devices to allow
+3. **Approved** devices appear in room assignment and the ToyBox widget
+4. **Denied** devices are hidden from future scans (unless manually reset)
+5. Previously-approved devices auto-approve on future scans (persistent whitelist)
+
+Approval decisions are stored in the database and survive restarts.
+
+### Protocol Allowlist
+
+The host selects which device brands/protocols the engine should recognize. This prevents the engine from even identifying devices using protocols the host doesn't use.
+
+- 18 known protocols are seeded in the database (Lovense, Hismith, We-Vibe, Kiiroo, etc.)
+- **Only Lovense and Hismith are enabled by default** — the host enables others as needed
+- Filtering is done at the application layer using regex matching on device names
+- Toggle switches in a collapsible **"Allowed Protocols"** section in Settings
+
+Changes take effect on the next scan — no engine restart needed.
+
 ## How It Works
 
 1. Install the add-on from your Home Assistant instance
 2. Open the PlayRooms panel from the sidebar
 3. **Enable at least one transport** (Bluetooth, Serial, or USB HID) in the add-on configuration
 4. Create a Play Room and configure its widgets
-5. Pair your Buttplug.io devices via the Settings page
-6. Assign devices to the room's Toy Box
-7. Generate a Share Link and send it to your guest(s)
-8. Guests open the link in their browser (PWA installable) and join through the lobby
+5. Go to **Settings** and click **Start Engine** to launch the Intiface Engine
+6. **Scan for Devices** — discovered devices appear as "Pending"
+7. **Approve** the devices you want to use (deny any you don't recognize)
+8. Assign approved devices to the room's Toy Box
+9. Generate a Share Link and send it to your guest(s)
+10. Guests open the link in their browser (PWA installable) and join through the lobby
 
 ## Standalone Docker Deployment
 
@@ -170,6 +209,7 @@ When running standalone, you must manually pass through hardware that the Home A
 | USB HID dongle | `--device /dev/hidraw0:/dev/hidraw0` | Direct HID device access |
 
 See the [Platform Setup Guides](../docs/) for step-by-step instructions:
+- [Home Assistant Supervisor Setup Guide](../docs/setup-home_assistant_supervisor.md)
 - [VirtualBox Setup Guide](../docs/setup-virtualbox.md)
 - [Proxmox Setup Guide](../docs/setup-proxmox.md)
 
@@ -207,7 +247,7 @@ The following devices have been tested by the community with this add-on. Result
 
 | Installation Type | Hardware | Status | Notes |
 |-------------------|----------|--------|-------|
-| HA OS | amd64 / x86_64 | Verified | Primary development platform |
+| HA OS (Supervisor) | amd64 / x86_64 | Verified | Primary platform — [Setup guide](../docs/setup-home_assistant_supervisor.md) |
 | VirtualBox VM (standalone Docker) | amd64 / x86_64 | Verified | [Setup guide](../docs/setup-virtualbox.md) |
 | Proxmox VM (standalone Docker) | amd64 / x86_64 | Verified | [Setup guide](../docs/setup-proxmox.md) |
 | *(Other platforms)* | | | *Report results in [GitHub Discussions](https://github.com/troon4891/HAButtPlugIO-PlayRooms/discussions)* |
