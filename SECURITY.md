@@ -10,9 +10,10 @@ This project is currently in **beta**. Security fixes are applied to the latest 
 
 | Version       | Supported          |
 | ------------- | ------------------ |
-| 2.0.x (beta)  | :white_check_mark: |
+| 3.1.x (beta)  | :white_check_mark: |
+| 3.0.x (beta)  | :white_check_mark: |
+| 2.0.x         | :x:                |
 | 1.x.x         | :x:                |
-| < 1.0.0       | :x:                |
 
 Once the project reaches a stable release, this table will be updated to reflect the long-term support policy.
 
@@ -38,6 +39,9 @@ The following categories are **in scope** for this project:
 - Unauthorized access to Buttplug.io device commands (bypassing room access controls to send vibrate/rotate/linear commands)
 - Ability to control devices outside the intended Play Room session
 - Anything that could cause unintended physical device activation
+- Bypassing the device approval whitelist (sending commands to unapproved/denied devices)
+- Bypassing the protocol allowlist (connecting to devices whose protocol is disabled)
+- Unauthorized engine start/stop (e.g., guest triggering engine lifecycle endpoints)
 
 ### Share Link & Access Control
 - Share Link token prediction, brute-force, or replay attacks
