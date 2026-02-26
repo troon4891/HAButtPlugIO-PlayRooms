@@ -2,7 +2,7 @@
 
 A Buttplug.io (Intiface Engine) server that exposes connected devices through shareable Play Rooms. Runs as a Home Assistant add-on or standalone Docker container.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-3.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Home%20Assistant%20%7C%20Docker-41BDF5)
 ![Status](https://img.shields.io/badge/status-Beta-orange)

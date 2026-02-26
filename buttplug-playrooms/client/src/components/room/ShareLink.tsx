@@ -54,7 +54,7 @@ export default function ShareLink({ roomId, links, onLinksChange }: ShareLinkPro
           {links.map((link) => (
             <div key={link.id} className="flex items-center gap-2 bg-slate-700/50 rounded-lg px-3 py-2">
               {link.portalUrl && (
-                <Cloud className="w-4 h-4 text-sky-400 flex-shrink-0" title="Via Portal" />
+                <span title="Via Portal"><Cloud className="w-4 h-4 text-sky-400 flex-shrink-0" /></span>
               )}
               <code className="flex-1 text-xs truncate text-slate-300">
                 {getShareUrl(link)}
