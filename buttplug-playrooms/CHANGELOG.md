@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-02-26 (UNTESTED)
+
+Device safety: three-pillar system to prevent the engine from auto-connecting to
+every Bluetooth device in range. Adds engine lifecycle control, device approval
+whitelist, and protocol-level filtering.
+
+**Status**: Code written, not yet tested.
+
+### Added
+- **Engine lifecycle control**: Start/Stop Engine button in Settings — engine no
+  longer auto-starts on boot (unless `scan_on_start: true` for backward compat)
+  - `POST /api/engine/start` — starts engine + connects Buttplug client
+  - `POST /api/engine/stop` — disconnects client + stops engine
+  - `GET /api/engine/status` — returns `{ running, clientConnected }`
+- **Device approval whitelist**: Discovered devices must be approved by the host
+  before they appear in ToyBox or room assignment
+  - New `approved_devices` DB table tracks every discovered device as
+    pending/approved/denied
+  - Previously-approved devices auto-approve on future scans
+  - Settings UI shows pending devices with Approve/Deny buttons, approved with
+    Revoke, denied behind a collapsible "Show denied" toggle
+  - `GET /api/devices/discovered` — all discovered devices with approval status
+  - `POST /api/devices/:id/approve|deny|reset` — change approval status
+- **Protocol allowlist**: Host selects which device brands/protocols to recognize
+  - New `allowed_protocols` DB table seeded with 18 known protocols
+  - Only Lovense and Hismith enabled by default; host enables others as needed
+  - Application-layer regex filtering on device names (no fragile engine config)
+  - Collapsible protocol toggle grid in Settings UI
+  - `GET /api/protocols` — list all protocols with enabled state
+  - `PUT /api/protocols/:name` — toggle a protocol on/off
+
+### Changed
+- `config.yaml`: Version bumped to 3.1.0
+- `index.ts`: Engine auto-start removed (start only via API or `scan_on_start`);
+  8 new API endpoints added; health endpoint now includes `engine` field and
+  reports version `3.1.0`
+- `client.ts`: `deviceadded` handler now runs protocol filter → approval check;
+  added `getDiscoveredDevices()` and `refreshDeviceStates()`
+- `schema.ts`: Added `approvedDevices` and `allowedProtocols` Drizzle tables
+- `migrate.ts`: v3.1.0 migration block + protocol seed data
+- `api.ts`: Added `engine`, `protocols`, and device approval API methods + types
+- `Settings.tsx`: Full redesign — engine controls, device scanner, discovered
+  devices with approval UI, collapsible protocol toggles
+- Health endpoint version corrected from `2.0.1` to `3.1.0`
+
+---
+
 ## [3.0.0] - 2026-02-25 (UNTESTED)
 
 Major architectural change: PlayRoom Portal — a cloud-hosted relay server that allows
