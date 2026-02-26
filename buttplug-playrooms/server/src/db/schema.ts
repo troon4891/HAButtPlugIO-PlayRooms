@@ -116,3 +116,24 @@ export const challengeCodes = sqliteTable("challenge_codes", {
   expiresAt: integer("expires_at").notNull(),
   createdAt: integer("created_at").notNull(),
 });
+
+// --- v3.1.0 tables ---
+
+export const approvedDevices = sqliteTable("approved_devices", {
+  id: text("id").primaryKey(),
+  deviceName: text("device_name").notNull(),
+  identifier: text("identifier").notNull().unique(),
+  status: text("status").notNull().default("pending"), // 'approved' | 'denied' | 'pending'
+  displayName: text("display_name"),
+  firstSeenAt: integer("first_seen_at").notNull(),
+  approvedAt: integer("approved_at"),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const allowedProtocols = sqliteTable("allowed_protocols", {
+  id: text("id").primaryKey(),
+  protocolName: text("protocol_name").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  enabled: integer("enabled").notNull().default(1),
+  updatedAt: integer("updated_at").notNull(),
+});

@@ -18,8 +18,16 @@ import { fileURLToPath } from "url";
 import { existsSync, readFileSync } from "fs";
 
 import { runMigrations } from "./db/migrate.js";
-import { startEngine, stopEngine } from "./buttplug/engine.js";
-import { connectClient, startScanning, isConnected, getDeviceStates } from "./buttplug/client.js";
+import { startEngine, stopEngine, isEngineRunning } from "./buttplug/engine.js";
+import {
+  connectClient,
+  disconnectClient,
+  startScanning,
+  isConnected,
+  getDeviceStates,
+  getDiscoveredDevices,
+  refreshDeviceStates,
+} from "./buttplug/client.js";
 import { roomRouter } from "./rooms/room.routes.js";
 import { setupRoomSockets } from "./rooms/room.socket.js";
 import { requireHost } from "./auth/middleware.js";
@@ -31,6 +39,8 @@ import { webhookRouter } from "./webhooks/webhook.routes.js";
 import { rateLimiter } from "./auth/rate-limiter.js";
 import { startCleanupInterval, stopCleanupInterval } from "./auth/cleanup.js";
 import { dispatchEvent } from "./webhooks/webhook.service.js";
+import { approveDevice, denyDevice, resetDevice } from "./buttplug/device-approval.js";
+import { getProtocols, setProtocolEnabled } from "./buttplug/protocol-filter.js";
 
 import type { ServerToClientEvents, ClientToServerEvents, GuestType } from "./types/index.js";
 
@@ -75,8 +85,58 @@ app.use("/api/rooms/:roomId/webhooks", requireHost, webhookRouter);
 // API key management
 app.use("/api/keys", apiKeysRouter);
 
-app.get("/api/devices", requireHost, (_req, res) => {
-  res.json(getDeviceStates());
+// --- Engine lifecycle API (Pillar 1) ---
+
+app.post("/api/engine/start", requireHost, async (_req, res) => {
+  try {
+    if (isEngineRunning()) {
+      // Engine already running, just ensure client is connected
+      if (!isConnected()) {
+        await connectClient();
+      }
+      res.json({ status: "already_running" });
+      return;
+    }
+    await startEngine();
+    await connectClient();
+    res.json({ status: "started" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/engine/stop", requireHost, async (_req, res) => {
+  try {
+    await disconnectClient();
+    stopEngine();
+    res.json({ status: "stopped" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.get("/api/engine/status", requireHost, (_req, res) => {
+  res.json({
+    running: isEngineRunning(),
+    clientConnected: isConnected(),
+  });
+});
+
+// --- Device endpoints ---
+
+app.get("/api/devices", requireHost, async (_req, res) => {
+  // Returns only approved + connected devices (backward compatible)
+  const states = getDeviceStates();
+  // Filter to only approved devices
+  const { isDeviceApproved } = await import("./buttplug/device-approval.js");
+  const approvedStates: typeof states = [];
+  for (const state of states) {
+    const identifier = `bp_${state.id}_${state.name}`;
+    if (await isDeviceApproved(identifier)) {
+      approvedStates.push(state);
+    }
+  }
+  res.json(approvedStates);
 });
 
 app.post("/api/devices/scan/start", requireHost, async (_req, res) => {
@@ -108,6 +168,72 @@ app.post("/api/devices/:id/assign", requireHost, (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// --- Device approval API (Pillar 2) ---
+
+app.get("/api/devices/discovered", requireHost, async (_req, res) => {
+  try {
+    const discovered = await getDiscoveredDevices();
+    res.json(discovered);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/devices/:id/approve", requireHost, async (req, res) => {
+  try {
+    await approveDevice(req.params.id);
+    refreshDeviceStates();
+    res.json({ status: "approved" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/devices/:id/deny", requireHost, async (req, res) => {
+  try {
+    await denyDevice(req.params.id);
+    refreshDeviceStates();
+    res.json({ status: "denied" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/devices/:id/reset", requireHost, async (req, res) => {
+  try {
+    await resetDevice(req.params.id);
+    refreshDeviceStates();
+    res.json({ status: "pending" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// --- Protocol API (Pillar 3) ---
+
+app.get("/api/protocols", requireHost, async (_req, res) => {
+  try {
+    const protocols = await getProtocols();
+    res.json(protocols);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.put("/api/protocols/:name", requireHost, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") {
+      res.status(400).json({ error: "enabled must be a boolean" });
+      return;
+    }
+    await setProtocolEnabled(req.params.name, enabled);
+    res.json({ status: "updated" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
   }
 });
 
@@ -162,15 +288,15 @@ app.get("/api/portal/info", requireHost, (_req, res) => {
 app.get("/api/health", (_req, res) => {
   const result: Record<string, unknown> = {
     status: "ok",
+    engine: isEngineRunning(),
     buttplug: isConnected(),
-    version: "2.0.1",
+    version: "3.1.0",
     transports: config.transports,
     authMode: config.authMode,
   };
 
   if (config.portalUrl) {
     try {
-      // Dynamic import is cached after first load, so this is effectively synchronous after startup
       const relayClientModule = relayClientRef;
       result.portalConnected = relayClientModule?.isRelayConnected() ?? false;
     } catch {
@@ -213,31 +339,34 @@ async function start(): Promise<void> {
   // Start periodic cleanup (expired tokens, challenge codes, inactive guests)
   startCleanupInterval();
 
-  let engineRunning = false;
-  console.log("[PlayRooms] Starting Intiface Engine...");
-  try {
-    await startEngine();
-    console.log("[PlayRooms] Intiface Engine started");
-    engineRunning = true;
-  } catch (err) {
-    console.warn("[PlayRooms] Intiface Engine failed to start:", (err as Error).message);
-    console.warn("[PlayRooms] Continuing without device support...");
-  }
-
-  if (engineRunning) {
-    console.log("[PlayRooms] Connecting Buttplug client...");
+  // v3.1.0: Only auto-start engine if scan_on_start is true (backward compat)
+  // Otherwise, the host starts the engine manually from Settings.
+  if (config.scanOnStart) {
+    let engineRunning = false;
+    console.log("[PlayRooms] scan_on_start enabled — starting Intiface Engine...");
     try {
-      await connectClient();
-      console.log("[PlayRooms] Buttplug client connected");
+      await startEngine();
+      console.log("[PlayRooms] Intiface Engine started");
+      engineRunning = true;
+    } catch (err) {
+      console.warn("[PlayRooms] Intiface Engine failed to start:", (err as Error).message);
+      console.warn("[PlayRooms] Continuing without device support...");
+    }
 
-      if (config.scanOnStart) {
+    if (engineRunning) {
+      console.log("[PlayRooms] Connecting Buttplug client...");
+      try {
+        await connectClient();
+        console.log("[PlayRooms] Buttplug client connected");
         await startScanning();
         console.log("[PlayRooms] Auto-scan started");
+      } catch (err) {
+        console.warn("[PlayRooms] Buttplug client connection failed:", (err as Error).message);
+        console.warn("[PlayRooms] Device features will be unavailable until connected");
       }
-    } catch (err) {
-      console.warn("[PlayRooms] Buttplug client connection failed:", (err as Error).message);
-      console.warn("[PlayRooms] Device features will be unavailable until connected");
     }
+  } else {
+    console.log("[PlayRooms] Engine will start when host clicks 'Start Engine' in Settings");
   }
 
   // Connect to portal relay if configured

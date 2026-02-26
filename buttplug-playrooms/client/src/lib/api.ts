@@ -35,6 +35,13 @@ export const share = {
   validate: (token: string) => request<RoomPublicInfo>(`/join/${token}`),
 };
 
+// Engine lifecycle (Pillar 1)
+export const engine = {
+  start: () => request<{ status: string }>("/engine/start", { method: "POST" }),
+  stop: () => request<{ status: string }>("/engine/stop", { method: "POST" }),
+  status: () => request<EngineStatus>("/engine/status"),
+};
+
 // Devices
 export const devices = {
   list: () => request<DeviceState[]>("/devices"),
@@ -42,12 +49,29 @@ export const devices = {
   stopScan: () => request<{ status: string }>("/devices/scan/stop", { method: "POST" }),
   assign: (id: string, roomId: string, settings?: Record<string, unknown>) =>
     request(`/devices/${id}/assign`, { method: "POST", body: JSON.stringify({ roomId, settings }) }),
+  // Device approval (Pillar 2)
+  discovered: () => request<DiscoveredDevice[]>("/devices/discovered"),
+  approve: (id: string) => request<{ status: string }>(`/devices/${id}/approve`, { method: "POST" }),
+  deny: (id: string) => request<{ status: string }>(`/devices/${id}/deny`, { method: "POST" }),
+  reset: (id: string) => request<{ status: string }>(`/devices/${id}/reset`, { method: "POST" }),
+};
+
+// Protocols (Pillar 3)
+export const protocols = {
+  list: () => request<Protocol[]>("/protocols"),
+  setEnabled: (name: string, enabled: boolean) =>
+    request<{ status: string }>(`/protocols/${name}`, {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
+    }),
 };
 
 // Health
-export const health = () => request<{ status: string; buttplug: boolean; version: string }>("/health");
+export const health = () =>
+  request<HealthResponse>("/health");
 
 // Types
+
 export interface Room {
   id: string;
   name: string;
@@ -104,4 +128,45 @@ export interface DeviceState {
     linear: boolean;
     battery: boolean;
   };
+}
+
+export interface EngineStatus {
+  running: boolean;
+  clientConnected: boolean;
+}
+
+export interface DiscoveredDevice {
+  id: string;
+  approvalId: string;
+  name: string;
+  identifier: string;
+  status: "approved" | "denied" | "pending";
+  connected: boolean;
+  capabilities: {
+    vibrate: boolean;
+    rotate: boolean;
+    linear: boolean;
+    battery: boolean;
+  };
+  batteryLevel: number | null;
+}
+
+export interface Protocol {
+  protocolName: string;
+  displayName: string;
+  enabled: boolean;
+}
+
+export interface HealthResponse {
+  status: string;
+  engine: boolean;
+  buttplug: boolean;
+  version: string;
+  transports: {
+    bluetooth: boolean;
+    serial: boolean;
+    hid: boolean;
+  };
+  authMode: string;
+  portalConnected?: boolean;
 }
