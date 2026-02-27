@@ -100,6 +100,9 @@ The source code for all phases exists and compiles (TypeScript errors fixed in v
 | v1.0.11 | 2026-02-22 | Fix | Fixed blank page under HA ingress (server-side base injection, relative asset paths, ingress-aware routing/API/socket) |
 | v2.0.0 | 2026-02-24 | Feature | Standalone Docker mode, user auth, guest tiers, API keys, webhooks, security hardening |
 | v2.0.1 | 2026-02-25 | Fix | Fixed device broadcast, guest permission checks, host approval flow, PWA icons, wired up orphaned components |
+| v3.0.0 | 2026-02-25 | Feature | PlayRoom Portal — cloud relay for guest access without exposing HA (UNTESTED) |
+| v3.1.0 | 2026-02-26 | Feature | Device safety — engine lifecycle, approval whitelist, protocol filtering (UNTESTED) |
+| v3.2.0 | 2026-02-26 | Feature | Device management overhaul — Add New Device modal, global settings, stale cleanup (UNTESTED) |
 
 ---
 
