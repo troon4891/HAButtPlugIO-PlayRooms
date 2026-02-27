@@ -1,12 +1,13 @@
 import { ButtplugClient, ButtplugNodeWebsocketClientConnector, ButtplugClientDevice } from "buttplug";
 import { config } from "../config.js";
 import { matchesEnabledProtocol } from "./protocol-filter.js";
-import { getOrCreateDevice, isDeviceApproved } from "./device-approval.js";
+import { getOrCreateDevice, isDeviceApproved, denyDevice, updateLastSeen, getDeviceByIdentifier } from "./device-approval.js";
 import type { DeviceState, DeviceCapabilities, DeviceCommand } from "../types/index.js";
 
 let client: ButtplugClient | null = null;
 let deviceListeners: Array<(devices: DeviceState[]) => void> = [];
 let discoveredListeners: Array<() => void> = [];
+let scanTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Track all discovered devices with their buttplug index → identifier mapping
 const discoveredDeviceMap = new Map<number, { name: string; identifier: string }>();
@@ -26,10 +27,11 @@ export function onDiscoveredChanged(listener: () => void): () => void {
 }
 
 function notifyDeviceListeners(): void {
-  const states = getDeviceStates();
-  for (const listener of deviceListeners) {
-    listener(states);
-  }
+  getDeviceStates().then((states) => {
+    for (const listener of deviceListeners) {
+      listener(states);
+    }
+  });
 }
 
 function notifyDiscoveredListeners(): void {
@@ -48,13 +50,20 @@ function mapCapabilities(device: ButtplugClientDevice): DeviceCapabilities {
   };
 }
 
-function deviceToState(device: ButtplugClientDevice): DeviceState {
+async function deviceToState(device: ButtplugClientDevice): Promise<DeviceState> {
+  const identifier = device.name;
+  const record = await getDeviceByIdentifier(identifier);
+  const globalSettings = record
+    ? JSON.parse(record.globalSettings || "{}")
+    : undefined;
+
   return {
     id: String(device.index),
-    name: device.name,
+    name: globalSettings?.displayName || device.name,
     connected: true,
     batteryLevel: null,
     capabilities: mapCapabilities(device),
+    globalSettings,
   };
 }
 
@@ -62,16 +71,13 @@ function deviceToState(device: ButtplugClientDevice): DeviceState {
  * Returns only approved + connected devices (backward compatible).
  * Used by ToyBox, room assignment, etc.
  */
-export function getDeviceStates(): DeviceState[] {
+export async function getDeviceStates(): Promise<DeviceState[]> {
   if (!client) return [];
   const approvedStates: DeviceState[] = [];
-  // We filter synchronously using the discovered map; the approval check
-  // was already done when the device was added
   for (const device of client.devices) {
     const entry = discoveredDeviceMap.get(device.index);
     if (entry) {
-      // Only include if we know it's been approved (check is cached in the map flow)
-      approvedStates.push(deviceToState(device));
+      approvedStates.push(await deviceToState(device));
     }
   }
   return approvedStates;
@@ -91,16 +97,22 @@ export async function getDiscoveredDevices(): Promise<
     connected: boolean;
     capabilities: DeviceCapabilities;
     batteryLevel: number | null;
+    globalSettings: Record<string, unknown>;
+    protocol: string | null;
+    lastSeenAt: number | null;
   }>
 > {
   const { getAllDeviceRecords } = await import("./device-approval.js");
   const records = await getAllDeviceRecords();
 
-  return records.map((record) => {
+  return await Promise.all(records.map(async (record) => {
     // Find the live buttplug device if connected
     const liveDevice = client?.devices.find(
       (d) => discoveredDeviceMap.get(d.index)?.identifier === record.identifier
     );
+
+    // Determine protocol from device name
+    const protocolResult = await matchesEnabledProtocol(record.deviceName);
 
     return {
       id: record.id,
@@ -113,12 +125,16 @@ export async function getDiscoveredDevices(): Promise<
         ? mapCapabilities(liveDevice)
         : { vibrate: false, rotate: false, linear: false, battery: false },
       batteryLevel: null,
+      globalSettings: JSON.parse(record.globalSettings || "{}"),
+      protocol: protocolResult.protocol,
+      lastSeenAt: record.lastSeenAt ?? null,
     };
-  });
+  }));
 }
 
 async function handleDeviceAdded(device: ButtplugClientDevice): Promise<void> {
-  const identifier = `bp_${device.index}_${device.name}`;
+  // Use device.name as stable identifier (index changes across sessions)
+  const identifier = device.name;
 
   // Step 1: Protocol filter — is this device's brand/protocol allowed?
   const protocolResult = await matchesEnabledProtocol(device.name);
@@ -126,12 +142,22 @@ async function handleDeviceAdded(device: ButtplugClientDevice): Promise<void> {
     console.log(
       `[Buttplug] Device "${device.name}" blocked by protocol filter (protocol: ${protocolResult.protocol})`
     );
+    // Safety: stop the device in case engine auto-activated anything
+    try { await device.stop(); } catch { /* ignore */ }
+    // Record as auto-denied so it shows in the blocked device list
+    const record = await getOrCreateDevice(device.name, identifier);
+    if (record.status === "pending") {
+      await denyDevice(record.id);
+    }
+    await updateLastSeen(record.id);
+    notifyDiscoveredListeners();
     return;
   }
 
   // Step 2: Record in approval database
   discoveredDeviceMap.set(device.index, { name: device.name, identifier });
   const record = await getOrCreateDevice(device.name, identifier);
+  await updateLastSeen(record.id);
 
   console.log(
     `[Buttplug] Device discovered: "${device.name}" (status: ${record.status}, protocol: ${protocolResult.protocol})`
@@ -193,12 +219,29 @@ export async function startScanning(): Promise<void> {
   if (!client?.connected) throw new Error("Buttplug client not connected");
   await client.startScanning();
   console.log("[Buttplug] Scanning started");
+
+  // Server-side auto-stop after configured timeout
+  if (scanTimer) clearTimeout(scanTimer);
+  scanTimer = setTimeout(async () => {
+    scanTimer = null;
+    try {
+      await stopScanning();
+      console.log(`[Buttplug] Scan auto-stopped after ${config.scanTimeout}ms`);
+    } catch (err) {
+      console.error("[Buttplug] Error auto-stopping scan:", err);
+    }
+  }, config.scanTimeout);
 }
 
 export async function stopScanning(): Promise<void> {
+  if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
   if (!client?.connected) return;
   await client.stopScanning();
   console.log("[Buttplug] Scanning stopped");
+}
+
+export function isScanning(): boolean {
+  return scanTimer !== null;
 }
 
 export async function sendCommand(cmd: DeviceCommand): Promise<void> {
@@ -213,7 +256,27 @@ export async function sendCommand(cmd: DeviceCommand): Promise<void> {
     throw new Error(`Device ${cmd.deviceId} is not approved`);
   }
 
-  const value = Math.max(0, Math.min(1, cmd.value));
+  let value = Math.max(0, Math.min(1, cmd.value));
+
+  // Apply global device settings (intensity cap, command restrictions)
+  if (identifier) {
+    const record = await getDeviceByIdentifier(identifier);
+    if (record) {
+      const settings = JSON.parse(record.globalSettings || "{}");
+
+      // Check allowed commands (stop is always permitted)
+      if (cmd.command !== "stop" && settings.allowedCommands?.length > 0) {
+        if (!settings.allowedCommands.includes(cmd.command)) {
+          throw new Error(`Command "${cmd.command}" not allowed for this device`);
+        }
+      }
+
+      // Clamp intensity to global max
+      if (typeof settings.maxIntensity === "number" && settings.maxIntensity < 1.0) {
+        value = Math.min(value, settings.maxIntensity);
+      }
+    }
+  }
 
   switch (cmd.command) {
     case "vibrate":

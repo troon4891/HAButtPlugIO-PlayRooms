@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-02-26 (UNTESTED)
+
+Device management overhaul: "Add New Device" modal, global per-device settings
+(intensity caps, allowed commands), auto-blocking of disabled protocols, stable
+device identifiers, engine restart, and scan timeout fixes.
+
+**Status**: Code written, not yet tested.
+
+### Added
+- **Add New Device modal**: Full-screen overlay for device discovery with scan
+  progress bar, countdown timer, and inline device settings
+  - Scan timeout is server-enforced (configurable via `scan_timeout`, default 30s)
+  - Devices grouped by status: New, Added, Blocked
+  - Inline settings panel for approved devices (gear icon)
+- **Global device settings**: Per-device limits that rooms cannot override
+  - `maxIntensity` (0-100%) — caps the intensity slider in ToyBox
+  - `allowedCommands` — restrict which commands a device accepts
+  - `displayName` — user-friendly name override
+  - Enforced server-side in `sendCommand()` before dispatching to engine
+  - Visible read-only in room ToyBox (slider capped, blocked commands hidden)
+- **Engine restart**: `POST /api/engine/restart` — stops scanning, disconnects
+  client, restarts engine, reconnects. ~3s gap.
+  - Protocol change banner: "Protocol settings changed. Restart engine for
+    changes to take effect." with [Restart Now] button
+- **Auto-block by protocol**: Devices matching disabled protocols are
+  automatically denied and recorded in the blocked list. `device.stop()` called
+  as a safety measure.
+- **Forget device**: `DELETE /api/devices/:id` — completely removes a device
+  record from the database. Available for both approved and blocked devices.
+- **Stale device cleanup**: Auto-removes blocked devices not seen in N days
+  (configurable via `device_stale_days`, default 90, 0 = disabled). Runs on
+  startup. Only removes denied devices, never approved ones.
+- **Scan status endpoint**: `GET /api/devices/scan/status` returns scanning
+  state and configured timeout
+- `GET /api/devices/:id/settings` and `PUT /api/devices/:id/settings` for
+  global device settings CRUD
+
+### Changed
+- **Stable device identifier**: Changed from `bp_${index}_${name}` (broken
+  across sessions because index changes) to `device.name` (stable). Existing
+  device records will appear as new — re-approve them once.
+- **Server-side scan timeout**: Engine scan is now auto-stopped server-side
+  after configured timeout. Previously only the UI stopped polling but the
+  engine kept scanning indefinitely.
+- **Settings page redesign**: Replaced inline device scanner with "Add New
+  Device" button + managed devices list with inline settings and blocked
+  devices section
+- **ToyBox global limits**: Intensity slider max is capped by device's global
+  `maxIntensity` setting. Disabled commands hide their buttons. "max X%" label
+  shown when capped.
+- `getDeviceStates()` is now async (returns device global settings from DB)
+- `getDevicesForRoom()` is now async and includes `globalSettings` in response
+- `config.yaml`: Added `scan_timeout` and `device_stale_days` options
+- Health endpoint version updated to `3.2.0`
+
+### Fixed
+- **Scan timeout bug**: `handleStartScan()` in Settings.tsx had a 30s timer
+  that only cleared the UI polling interval but never called `stopScanning()`,
+  causing the engine to scan indefinitely
+- **Identifier instability**: Device approval was broken across engine restarts
+  because `bp_${index}_${name}` used runtime index that changes each session
+
+---
+
 ## [3.1.0] - 2026-02-26 (UNTESTED)
 
 Device safety: three-pillar system to prevent the engine from auto-connecting to

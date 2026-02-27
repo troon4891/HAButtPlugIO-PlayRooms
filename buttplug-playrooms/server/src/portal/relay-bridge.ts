@@ -157,7 +157,7 @@ async function handleDeviceCommand(
   cmd: DeviceCommand,
 ): Promise<void> {
   // Verify device is assigned to this room
-  const roomDevices = toyboxService.getDevicesForRoom(roomId);
+  const roomDevices = await toyboxService.getDevicesForRoom(roomId);
   const deviceAllowed = roomDevices.some(
     (d) => d.id === cmd.deviceId || String(d.buttplugIndex) === cmd.deviceId,
   );
@@ -279,9 +279,9 @@ function handleValidateRequest(data: RelayValidateRequest): void {
   });
 }
 
-function sendRoomStateToPortalGuest(portalGuestId: string, roomId: string): void {
+async function sendRoomStateToPortalGuest(portalGuestId: string, roomId: string): Promise<void> {
   const guests = lobby.getRoomGuests(roomId);
-  const devices = toyboxService.getDevicesForRoom(roomId);
+  const devices = await toyboxService.getDevicesForRoom(roomId);
 
   relayClient.emitToGuest(portalGuestId, "room:state", {
     guests: guests.map((g) => ({ id: g.id, name: g.name })),

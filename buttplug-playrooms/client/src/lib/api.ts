@@ -39,6 +39,7 @@ export const share = {
 export const engine = {
   start: () => request<{ status: string }>("/engine/start", { method: "POST" }),
   stop: () => request<{ status: string }>("/engine/stop", { method: "POST" }),
+  restart: () => request<{ status: string }>("/engine/restart", { method: "POST" }),
   status: () => request<EngineStatus>("/engine/status"),
 };
 
@@ -54,6 +55,16 @@ export const devices = {
   approve: (id: string) => request<{ status: string }>(`/devices/${id}/approve`, { method: "POST" }),
   deny: (id: string) => request<{ status: string }>(`/devices/${id}/deny`, { method: "POST" }),
   reset: (id: string) => request<{ status: string }>(`/devices/${id}/reset`, { method: "POST" }),
+  forget: (id: string) => request<{ status: string }>(`/devices/${id}`, { method: "DELETE" }),
+  // Global device settings
+  getSettings: (id: string) => request<DeviceGlobalSettings>(`/devices/${id}/settings`),
+  updateSettings: (id: string, settings: Partial<DeviceGlobalSettings>) =>
+    request<{ status: string }>(`/devices/${id}/settings`, {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    }),
+  // Scan status
+  scanStatus: () => request<ScanStatus>("/devices/scan/status"),
 };
 
 // Protocols (Pillar 3)
@@ -128,6 +139,7 @@ export interface DeviceState {
     linear: boolean;
     battery: boolean;
   };
+  globalSettings?: DeviceGlobalSettings;
 }
 
 export interface EngineStatus {
@@ -149,6 +161,20 @@ export interface DiscoveredDevice {
     battery: boolean;
   };
   batteryLevel: number | null;
+  globalSettings: DeviceGlobalSettings;
+  protocol: string | null;
+  lastSeenAt: number | null;
+}
+
+export interface DeviceGlobalSettings {
+  maxIntensity: number;
+  allowedCommands: string[];
+  displayName: string | null;
+}
+
+export interface ScanStatus {
+  scanning: boolean;
+  scanTimeout: number;
 }
 
 export interface Protocol {

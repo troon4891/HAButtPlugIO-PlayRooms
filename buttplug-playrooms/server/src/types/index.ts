@@ -35,12 +35,19 @@ export interface DeviceCapabilities {
   battery: boolean;
 }
 
+export interface DeviceGlobalSettings {
+  maxIntensity: number;
+  allowedCommands: string[];
+  displayName: string | null;
+}
+
 export interface DeviceState {
   id: string;
   name: string;
   connected: boolean;
   batteryLevel: number | null;
   capabilities: DeviceCapabilities;
+  globalSettings?: DeviceGlobalSettings;
 }
 
 export interface DeviceCommand {

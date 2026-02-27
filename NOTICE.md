@@ -35,6 +35,7 @@ those NOTICE files alongside the Apache-2.0 license text.
 | express | ^4.21.0 | MIT | https://github.com/expressjs/express |
 | nanoid | ^5.0.9 | MIT | https://github.com/ai/nanoid |
 | socket.io | ^4.8.0 | MIT | https://github.com/socketio/socket.io |
+| socket.io-client | ^4.8.0 | MIT | https://github.com/socketio/socket.io-client |
 | uuid | ^11.0.0 | MIT | https://github.com/uuidjs/uuid |
 
 ## Server Dev Dependencies

@@ -13,6 +13,8 @@ interface AppConfig {
   intifacePort: number;
   serverPort: number;
   scanOnStart: boolean;
+  scanTimeout: number;          // scan auto-stop timeout in milliseconds
+  deviceStaleRemovalDays: number; // auto-remove denied devices not seen in N days (0 = disabled)
   dataDir: string;
   transports: TransportConfig;
   authMode: AuthMode;
@@ -98,6 +100,8 @@ function loadConfig(): AppConfig {
     intifacePort: Number(haOptions.intiface_port ?? process.env.INTIFACE_PORT ?? 12345),
     serverPort: Number(haOptions.server_port ?? process.env.SERVER_PORT ?? (portalMode ? 8080 : 8099)),
     scanOnStart: parseBool(haOptions.scan_on_start, process.env.SCAN_ON_START, false),
+    scanTimeout: Number(haOptions.scan_timeout ?? process.env.SCAN_TIMEOUT ?? 30000),
+    deviceStaleRemovalDays: Number(haOptions.device_stale_days ?? process.env.DEVICE_STALE_DAYS ?? 90),
     dataDir,
     transports: {
       bluetooth: parseBool(haOptions.use_bluetooth, process.env.USE_BLUETOOTH, false),

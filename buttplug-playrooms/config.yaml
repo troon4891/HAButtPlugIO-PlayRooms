@@ -1,5 +1,5 @@
 name: "ButtPlug.io PlayRooms"
-version: "3.1.0"
+version: "3.2.0"
 slug: "buttplug-playrooms"
 description: "Host Buttplug.io devices as Play Rooms with PWA access and Share Links"
 url: "https://github.com/troon4891/HAButtPlugIO-PlayRooms/tree/beta/buttplug-playrooms"
@@ -23,6 +23,8 @@ options:
   intiface_port: 12345
   server_port: 8099
   scan_on_start: false
+  scan_timeout: 30000
+  device_stale_days: 90
   use_bluetooth: false
   use_serial: false
   use_hid: false
@@ -32,6 +34,8 @@ schema:
   intiface_port: "int(1024,65535)"
   server_port: "int(1024,65535)"
   scan_on_start: bool
+  scan_timeout: "int(5000,120000)"
+  device_stale_days: "int(0,365)"
   use_bluetooth: bool
   use_serial: bool
   use_hid: bool

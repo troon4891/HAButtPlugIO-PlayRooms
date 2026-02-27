@@ -31,68 +31,82 @@ export default function ToyBox({ devices, onCommand, isHost }: ToyBoxProps) {
         </p>
       ) : (
         <div className="space-y-4">
-          {devices.map((device) => (
-            <div key={device.id} className="bg-slate-700/50 rounded-lg p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-sm">{device.name}</span>
-                <div className={`w-2 h-2 rounded-full ${device.connected ? "bg-green-400" : "bg-red-400"}`} />
-              </div>
+          {devices.map((device) => {
+            const gs = (device as DeviceState & { globalSettings?: { maxIntensity?: number; allowedCommands?: string[] } }).globalSettings;
+            const maxPct = gs?.maxIntensity != null ? Math.round(gs.maxIntensity * 100) : 100;
+            const allowedCmds = gs?.allowedCommands;
+            const canVibrate = device.capabilities.vibrate && (!allowedCmds || allowedCmds.includes("vibrate"));
+            const canRotate = device.capabilities.rotate && (!allowedCmds || allowedCmds.includes("rotate"));
+            const canLinear = device.capabilities.linear && (!allowedCmds || allowedCmds.includes("linear"));
 
-              {/* Intensity slider */}
-              <div className="mb-2">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={getIntensity(device.id)}
-                  onChange={(e) => setIntensity(device.id, Number(e.target.value))}
-                  className="w-full accent-primary-500"
-                />
-                <span className="text-xs text-slate-400">{getIntensity(device.id)}%</span>
-              </div>
+            return (
+              <div key={device.id} className="bg-slate-700/50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-sm">{device.name}</span>
+                  <div className={`w-2 h-2 rounded-full ${device.connected ? "bg-green-400" : "bg-red-400"}`} />
+                </div>
 
-              {/* Control buttons */}
-              <div className="flex gap-2 flex-wrap">
-                {device.capabilities.vibrate && (
+                {/* Intensity slider */}
+                <div className="mb-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxPct}
+                    value={Math.min(getIntensity(device.id), maxPct)}
+                    onChange={(e) => setIntensity(device.id, Number(e.target.value))}
+                    className="w-full accent-primary-500"
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">{getIntensity(device.id)}%</span>
+                    {maxPct < 100 && (
+                      <span className="text-xs text-amber-400">max {maxPct}%</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Control buttons */}
+                <div className="flex gap-2 flex-wrap">
+                  {canVibrate && (
+                    <button
+                      onClick={() => onCommand(device.id, "vibrate", getIntensity(device.id) / 100)}
+                      className="btn-secondary text-xs px-2 py-1 flex items-center gap-1"
+                      disabled={!device.connected}
+                    >
+                      <Vibrate className="w-3 h-3" /> Vibrate
+                    </button>
+                  )}
+                  {canRotate && (
+                    <button
+                      onClick={() => onCommand(device.id, "rotate", getIntensity(device.id) / 100)}
+                      className="btn-secondary text-xs px-2 py-1 flex items-center gap-1"
+                      disabled={!device.connected}
+                    >
+                      <RotateCw className="w-3 h-3" /> Rotate
+                    </button>
+                  )}
+                  {canLinear && (
+                    <button
+                      onClick={() => onCommand(device.id, "linear", getIntensity(device.id) / 100)}
+                      className="btn-secondary text-xs px-2 py-1 flex items-center gap-1"
+                      disabled={!device.connected}
+                    >
+                      <MoveVertical className="w-3 h-3" /> Linear
+                    </button>
+                  )}
                   <button
-                    onClick={() => onCommand(device.id, "vibrate", getIntensity(device.id) / 100)}
-                    className="btn-secondary text-xs px-2 py-1 flex items-center gap-1"
+                    onClick={() => {
+                      onCommand(device.id, "stop", 0);
+                      setIntensity(device.id, 0);
+                    }}
+                    className="btn-danger text-xs px-2 py-1 flex items-center gap-1"
                     disabled={!device.connected}
                   >
-                    <Vibrate className="w-3 h-3" /> Vibrate
+                    <StopCircle className="w-3 h-3" /> Stop
                   </button>
-                )}
-                {device.capabilities.rotate && (
-                  <button
-                    onClick={() => onCommand(device.id, "rotate", getIntensity(device.id) / 100)}
-                    className="btn-secondary text-xs px-2 py-1 flex items-center gap-1"
-                    disabled={!device.connected}
-                  >
-                    <RotateCw className="w-3 h-3" /> Rotate
-                  </button>
-                )}
-                {device.capabilities.linear && (
-                  <button
-                    onClick={() => onCommand(device.id, "linear", getIntensity(device.id) / 100)}
-                    className="btn-secondary text-xs px-2 py-1 flex items-center gap-1"
-                    disabled={!device.connected}
-                  >
-                    <MoveVertical className="w-3 h-3" /> Linear
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    onCommand(device.id, "stop", 0);
-                    setIntensity(device.id, 0);
-                  }}
-                  className="btn-danger text-xs px-2 py-1 flex items-center gap-1"
-                  disabled={!device.connected}
-                >
-                  <StopCircle className="w-3 h-3" /> Stop
-                </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

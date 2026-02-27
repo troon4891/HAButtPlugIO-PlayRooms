@@ -18,12 +18,14 @@ import { fileURLToPath } from "url";
 import { existsSync, readFileSync } from "fs";
 
 import { runMigrations } from "./db/migrate.js";
-import { startEngine, stopEngine, isEngineRunning } from "./buttplug/engine.js";
+import { startEngine, stopEngine, restartEngine, isEngineRunning } from "./buttplug/engine.js";
 import {
   connectClient,
   disconnectClient,
   startScanning,
+  stopScanning,
   isConnected,
+  isScanning,
   getDeviceStates,
   getDiscoveredDevices,
   refreshDeviceStates,
@@ -39,7 +41,15 @@ import { webhookRouter } from "./webhooks/webhook.routes.js";
 import { rateLimiter } from "./auth/rate-limiter.js";
 import { startCleanupInterval, stopCleanupInterval } from "./auth/cleanup.js";
 import { dispatchEvent } from "./webhooks/webhook.service.js";
-import { approveDevice, denyDevice, resetDevice } from "./buttplug/device-approval.js";
+import {
+  approveDevice,
+  denyDevice,
+  resetDevice,
+  forgetDevice,
+  getDeviceGlobalSettings,
+  updateDeviceGlobalSettings,
+  cleanupStaleDevices,
+} from "./buttplug/device-approval.js";
 import { getProtocols, setProtocolEnabled } from "./buttplug/protocol-filter.js";
 
 import type { ServerToClientEvents, ClientToServerEvents, GuestType } from "./types/index.js";
@@ -126,13 +136,12 @@ app.get("/api/engine/status", requireHost, (_req, res) => {
 
 app.get("/api/devices", requireHost, async (_req, res) => {
   // Returns only approved + connected devices (backward compatible)
-  const states = getDeviceStates();
-  // Filter to only approved devices
+  const states = await getDeviceStates();
   const { isDeviceApproved } = await import("./buttplug/device-approval.js");
   const approvedStates: typeof states = [];
   for (const state of states) {
-    const identifier = `bp_${state.id}_${state.name}`;
-    if (await isDeviceApproved(identifier)) {
+    // Use device.name as stable identifier (matches handleDeviceAdded)
+    if (await isDeviceApproved(state.name)) {
       approvedStates.push(state);
     }
   }
@@ -150,7 +159,6 @@ app.post("/api/devices/scan/start", requireHost, async (_req, res) => {
 
 app.post("/api/devices/scan/stop", requireHost, async (_req, res) => {
   try {
-    const { stopScanning } = await import("./buttplug/client.js");
     await stopScanning();
     res.json({ status: "stopped" });
   } catch (err) {
@@ -158,9 +166,9 @@ app.post("/api/devices/scan/stop", requireHost, async (_req, res) => {
   }
 });
 
-app.post("/api/devices/:id/assign", requireHost, (req, res) => {
+app.post("/api/devices/:id/assign", requireHost, async (req, res) => {
   try {
-    const result = assignDeviceToRoom(
+    const result = await assignDeviceToRoom(
       parseInt(req.params.id),
       req.body.roomId,
       req.body.settings
@@ -210,6 +218,74 @@ app.post("/api/devices/:id/reset", requireHost, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
+});
+
+app.delete("/api/devices/:id", requireHost, async (req, res) => {
+  try {
+    await forgetDevice(req.params.id);
+    refreshDeviceStates();
+    res.json({ status: "removed" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// --- Device global settings ---
+
+app.get("/api/devices/:id/settings", requireHost, async (req, res) => {
+  try {
+    const settings = await getDeviceGlobalSettings(req.params.id);
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.put("/api/devices/:id/settings", requireHost, async (req, res) => {
+  try {
+    const { maxIntensity, allowedCommands, displayName } = req.body;
+    const update: Record<string, unknown> = {};
+    if (typeof maxIntensity === "number") {
+      update.maxIntensity = Math.max(0, Math.min(1, maxIntensity));
+    }
+    if (Array.isArray(allowedCommands)) {
+      const valid = ["vibrate", "rotate", "linear", "stop"];
+      update.allowedCommands = allowedCommands.filter((c: string) => valid.includes(c));
+    }
+    if (displayName !== undefined) {
+      update.displayName = displayName || null;
+    }
+    await updateDeviceGlobalSettings(req.params.id, update);
+    refreshDeviceStates();
+    res.json({ status: "updated" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// --- Engine restart ---
+
+app.post("/api/engine/restart", requireHost, async (_req, res) => {
+  try {
+    await stopScanning();
+    await disconnectClient();
+    await restartEngine();
+    // Wait for engine to be ready
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await connectClient();
+    res.json({ status: "restarted" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// --- Scan status ---
+
+app.get("/api/devices/scan/status", requireHost, (_req, res) => {
+  res.json({
+    scanning: isScanning(),
+    scanTimeout: config.scanTimeout,
+  });
 });
 
 // --- Protocol API (Pillar 3) ---
@@ -290,7 +366,7 @@ app.get("/api/health", (_req, res) => {
     status: "ok",
     engine: isEngineRunning(),
     buttplug: isConnected(),
-    version: "3.1.0",
+    version: "3.2.0",
     transports: config.transports,
     authMode: config.authMode,
   };
@@ -338,6 +414,11 @@ async function start(): Promise<void> {
 
   // Start periodic cleanup (expired tokens, challenge codes, inactive guests)
   startCleanupInterval();
+
+  // v3.2.0: Auto-remove stale blocked devices
+  if (config.deviceStaleRemovalDays > 0) {
+    await cleanupStaleDevices(config.deviceStaleRemovalDays);
+  }
 
   // v3.1.0: Only auto-start engine if scan_on_start is true (backward compat)
   // Otherwise, the host starts the engine manually from Settings.

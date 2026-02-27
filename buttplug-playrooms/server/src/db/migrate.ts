@@ -188,6 +188,10 @@ export function runMigrations(): void {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_allowed_protocols_name ON allowed_protocols(protocol_name);
   `);
 
+  // --- v3.2.0 migrations ---
+  addColumnIfMissing("approved_devices", "global_settings", "TEXT NOT NULL DEFAULT '{}'");
+  addColumnIfMissing("approved_devices", "last_seen_at", "INTEGER");
+
   // Seed default protocols (only inserts if table is empty)
   const protocolCount = sqlite.prepare("SELECT COUNT(*) as cnt FROM allowed_protocols").get() as { cnt: number };
   if (protocolCount.cnt === 0) {

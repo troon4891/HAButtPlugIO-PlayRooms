@@ -196,6 +196,15 @@ export function stopEngine(): void {
   }
 }
 
+export async function restartEngine(): Promise<void> {
+  console.log("[Engine] Restarting Intiface Engine...");
+  stopEngine();
+  // Wait for process to fully exit
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  await startEngine();
+  console.log("[Engine] Restart complete");
+}
+
 export function isEngineRunning(): boolean {
   return engineProcess !== null && !engineProcess.killed;
 }

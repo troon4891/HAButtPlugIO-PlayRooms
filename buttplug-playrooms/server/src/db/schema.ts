@@ -125,7 +125,9 @@ export const approvedDevices = sqliteTable("approved_devices", {
   identifier: text("identifier").notNull().unique(),
   status: text("status").notNull().default("pending"), // 'approved' | 'denied' | 'pending'
   displayName: text("display_name"),
+  globalSettings: text("global_settings").notNull().default("{}"),
   firstSeenAt: integer("first_seen_at").notNull(),
+  lastSeenAt: integer("last_seen_at"),
   approvedAt: integer("approved_at"),
   updatedAt: integer("updated_at").notNull(),
 });

@@ -95,7 +95,7 @@ export function setupRoomSockets(io: IOServer): void {
   });
 }
 
-function handleHostConnection(io: IOServer, socket: IOSocket, roomId: string): void {
+async function handleHostConnection(io: IOServer, socket: IOSocket, roomId: string): Promise<void> {
   hostSockets.set(roomId, socket.id);
   socket.join(`room:${roomId}`);
   socket.join(`room:${roomId}:host`);
@@ -104,7 +104,7 @@ function handleHostConnection(io: IOServer, socket: IOSocket, roomId: string): v
 
   // Send current room state
   const guests = lobby.getRoomGuests(roomId);
-  const devices = toyboxService.getDevicesForRoom(roomId);
+  const devices = await toyboxService.getDevicesForRoom(roomId);
   socket.emit("room:state", {
     guests: guests.map((g) => ({ id: g.id, name: g.name })),
     devices: devices.map((d) => ({
@@ -211,7 +211,7 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
   // Guest device commands — verify device is assigned to this room
   socket.on("device:command", async (cmd) => {
     // Check that the target device is assigned to this guest's room
-    const roomDevices = toyboxService.getDevicesForRoom(roomId);
+    const roomDevices = await toyboxService.getDevicesForRoom(roomId);
     const deviceAllowed = roomDevices.some(
       (d) => d.id === cmd.deviceId || String(d.buttplugIndex) === cmd.deviceId
     );

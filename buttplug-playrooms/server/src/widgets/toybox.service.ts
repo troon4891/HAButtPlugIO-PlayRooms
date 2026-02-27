@@ -4,18 +4,18 @@ import { db, schema } from "../db/index.js";
 import * as buttplugClient from "../buttplug/client.js";
 import type { DeviceCommand } from "../types/index.js";
 
-export function listAllDevices() {
+export async function listAllDevices() {
   return buttplugClient.getDeviceStates();
 }
 
-export function getDevicesForRoom(roomId: string) {
+export async function getDevicesForRoom(roomId: string) {
   const assigned = db
     .select()
     .from(schema.devices)
     .where(eq(schema.devices.roomId, roomId))
     .all();
 
-  const liveDevices = buttplugClient.getDeviceStates();
+  const liveDevices = await buttplugClient.getDeviceStates();
 
   return assigned.map((d) => {
     const live = liveDevices.find((ld) => ld.id === String(d.buttplugIndex));
@@ -25,12 +25,13 @@ export function getDevicesForRoom(roomId: string) {
       connected: live?.connected ?? false,
       capabilities: live?.capabilities ?? { vibrate: false, rotate: false, linear: false, battery: false },
       batteryLevel: live?.batteryLevel ?? null,
+      globalSettings: live?.globalSettings ?? undefined,
     };
   });
 }
 
-export function assignDeviceToRoom(buttplugIndex: number, roomId: string, settings?: Record<string, unknown>) {
-  const liveDevices = buttplugClient.getDeviceStates();
+export async function assignDeviceToRoom(buttplugIndex: number, roomId: string, settings?: Record<string, unknown>) {
+  const liveDevices = await buttplugClient.getDeviceStates();
   const device = liveDevices.find((d) => d.id === String(buttplugIndex));
 
   if (!device) throw new Error(`Device ${buttplugIndex} not found`);

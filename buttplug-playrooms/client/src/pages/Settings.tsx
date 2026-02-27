@@ -1,17 +1,21 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
-  Search,
-  StopCircle,
+  Plus,
   Power,
   PowerOff,
   CheckCircle,
   XCircle,
-  Clock,
-  RotateCcw,
+  Ban,
+  Settings2,
+  RefreshCw,
   ChevronDown,
   ChevronRight,
+  Vibrate,
+  RotateCw,
+  MoveVertical,
+  X,
 } from "lucide-react";
 import {
   devices as devicesApi,
@@ -22,18 +26,20 @@ import {
   type EngineStatus,
   type Protocol,
 } from "../lib/api";
+import AddDeviceModal from "../components/AddDeviceModal";
 
 export default function Settings() {
   const [engineStatus, setEngineStatus] = useState<EngineStatus>({ running: false, clientConnected: false });
-  const [scanning, setScanning] = useState(false);
   const [discovered, setDiscovered] = useState<DiscoveredDevice[]>([]);
   const [protocolList, setProtocolList] = useState<Protocol[]>([]);
   const [loading, setLoading] = useState(true);
   const [engineLoading, setEngineLoading] = useState(false);
   const [showDenied, setShowDenied] = useState(false);
   const [showProtocols, setShowProtocols] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [protocolsChanged, setProtocolsChanged] = useState(false);
+  const [restartLoading, setRestartLoading] = useState(false);
   const [version, setVersion] = useState("");
-  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadEngineStatus = useCallback(async () => {
     try {
@@ -82,13 +88,6 @@ export default function Settings() {
     init();
   }, [loadEngineStatus, loadDiscovered, loadProtocols]);
 
-  // Cleanup scan interval on unmount
-  useEffect(() => {
-    return () => {
-      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-    };
-  }, []);
-
   async function handleStartEngine() {
     setEngineLoading(true);
     try {
@@ -104,15 +103,6 @@ export default function Settings() {
   async function handleStopEngine() {
     setEngineLoading(true);
     try {
-      // Stop scanning first if active
-      if (scanning) {
-        await devicesApi.stopScan();
-        setScanning(false);
-        if (scanIntervalRef.current) {
-          clearInterval(scanIntervalRef.current);
-          scanIntervalRef.current = null;
-        }
-      }
       await engineApi.stop();
       setEngineStatus({ running: false, clientConnected: false });
     } catch (err) {
@@ -122,66 +112,17 @@ export default function Settings() {
     }
   }
 
-  async function handleStartScan() {
+  async function handleRestartEngine() {
+    setRestartLoading(true);
     try {
-      await devicesApi.startScan();
-      setScanning(true);
-      // Refresh discovered list periodically while scanning
-      scanIntervalRef.current = setInterval(async () => {
-        await loadDiscovered();
-      }, 2000);
-      // Auto-stop after 30 seconds
-      setTimeout(() => {
-        if (scanIntervalRef.current) {
-          clearInterval(scanIntervalRef.current);
-          scanIntervalRef.current = null;
-        }
-        setScanning(false);
-        loadDiscovered();
-      }, 30000);
-    } catch (err) {
-      console.error("Scan failed:", err);
-    }
-  }
-
-  async function handleStopScan() {
-    try {
-      await devicesApi.stopScan();
-      setScanning(false);
-      if (scanIntervalRef.current) {
-        clearInterval(scanIntervalRef.current);
-        scanIntervalRef.current = null;
-      }
+      await engineApi.restart();
+      setProtocolsChanged(false);
+      await loadEngineStatus();
       await loadDiscovered();
     } catch (err) {
-      console.error("Stop scan failed:", err);
-    }
-  }
-
-  async function handleApprove(id: string) {
-    try {
-      await devicesApi.approve(id);
-      await loadDiscovered();
-    } catch (err) {
-      console.error("Approve failed:", err);
-    }
-  }
-
-  async function handleDeny(id: string) {
-    try {
-      await devicesApi.deny(id);
-      await loadDiscovered();
-    } catch (err) {
-      console.error("Deny failed:", err);
-    }
-  }
-
-  async function handleReset(id: string) {
-    try {
-      await devicesApi.reset(id);
-      await loadDiscovered();
-    } catch (err) {
-      console.error("Reset failed:", err);
+      console.error("Restart failed:", err);
+    } finally {
+      setRestartLoading(false);
     }
   }
 
@@ -191,9 +132,33 @@ export default function Settings() {
       setProtocolList((prev) =>
         prev.map((p) => (p.protocolName === name ? { ...p, enabled } : p))
       );
+      setProtocolsChanged(true);
     } catch (err) {
       console.error("Toggle protocol failed:", err);
     }
+  }
+
+  async function handleForget(id: string) {
+    try {
+      await devicesApi.forget(id);
+      await loadDiscovered();
+    } catch (err) {
+      console.error("Forget failed:", err);
+    }
+  }
+
+  async function handleUnblock(id: string) {
+    try {
+      await devicesApi.reset(id);
+      await loadDiscovered();
+    } catch (err) {
+      console.error("Unblock failed:", err);
+    }
+  }
+
+  function handleModalClose() {
+    setShowAddModal(false);
+    loadDiscovered();
   }
 
   if (loading) {
@@ -204,7 +169,6 @@ export default function Settings() {
     );
   }
 
-  const pendingDevices = discovered.filter((d) => d.status === "pending");
   const approvedDevices = discovered.filter((d) => d.status === "approved");
   const deniedDevices = discovered.filter((d) => d.status === "denied");
 
@@ -217,7 +181,7 @@ export default function Settings() {
         <h1 className="text-2xl font-bold">Settings</h1>
       </header>
 
-      {/* Pillar 1: Engine Controls */}
+      {/* Engine Controls */}
       <div className="card mb-6">
         <h2 className="text-lg font-semibold mb-3">Intiface Engine</h2>
         <div className="flex items-center gap-3">
@@ -252,100 +216,100 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Device Scanner */}
-      <div className="card mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Device Scanner</h2>
-          {scanning ? (
-            <button onClick={handleStopScan} className="btn-danger flex items-center gap-2 text-sm">
-              <StopCircle className="w-4 h-4" /> Stop Scanning
-            </button>
-          ) : (
-            <button
-              onClick={handleStartScan}
-              disabled={!engineStatus.running || !engineStatus.clientConnected}
-              className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50"
-            >
-              <Search className="w-4 h-4" /> Scan for Devices
-            </button>
-          )}
+      {/* Protocol restart banner */}
+      {protocolsChanged && engineStatus.running && (
+        <div className="bg-amber-900/30 border border-amber-700/50 rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
+          <span className="text-sm text-amber-200">
+            Protocol settings changed. Restart engine for changes to take effect.
+          </span>
+          <button
+            onClick={handleRestartEngine}
+            disabled={restartLoading}
+            className="btn-primary text-xs px-3 py-1 flex items-center gap-1 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3 h-3 ${restartLoading ? "animate-spin" : ""}`} />
+            {restartLoading ? "Restarting..." : "Restart Now"}
+          </button>
         </div>
-        {!engineStatus.running && (
-          <p className="text-slate-400 text-sm">Start the engine above to scan for devices.</p>
+      )}
+
+      {/* Device Management */}
+      <div className="card mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Devices</h2>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn-primary flex items-center gap-2 text-sm"
+          >
+            <Plus className="w-4 h-4" /> Add New Device
+          </button>
+        </div>
+
+        {/* Approved (managed) devices */}
+        {approvedDevices.length > 0 ? (
+          <div className="space-y-2 mb-4">
+            {approvedDevices.map((device) => (
+              <ManagedDeviceRow key={device.id} device={device} onRefresh={loadDiscovered} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-slate-400 text-sm mb-4">
+            No devices added yet. Click "Add New Device" to scan and add devices.
+          </p>
         )}
-        {engineStatus.running && !scanning && discovered.length === 0 && (
-          <p className="text-slate-400 text-sm">No devices found. Start a scan to discover devices.</p>
-        )}
-        {scanning && (
-          <div className="flex items-center gap-2 text-sm text-purple-300">
-            <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-            Scanning for devices...
+
+        {/* Blocked devices (collapsible) */}
+        {deniedDevices.length > 0 && (
+          <div>
+            <button
+              onClick={() => setShowDenied(!showDenied)}
+              className="flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200 mb-2"
+            >
+              {showDenied ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              Blocked devices ({deniedDevices.length})
+            </button>
+            {showDenied && (
+              <div className="space-y-2">
+                {deniedDevices.map((device) => (
+                  <div key={device.id} className="flex items-center justify-between bg-slate-700/50 rounded-lg px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Ban className="w-4 h-4 text-red-400" />
+                      <div>
+                        <span className="font-medium text-sm">{device.name}</span>
+                        {device.protocol && (
+                          <span className="text-xs text-slate-400 ml-2">({device.protocol})</span>
+                        )}
+                        {device.lastSeenAt && (
+                          <span className="text-xs text-slate-500 ml-2">
+                            Last seen: {new Date(device.lastSeenAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleUnblock(device.id)}
+                        className="text-xs text-slate-400 hover:text-white px-2 py-1"
+                      >
+                        Unblock
+                      </button>
+                      <button
+                        onClick={() => handleForget(device.id)}
+                        className="text-slate-500 hover:text-red-400 p-1 transition"
+                        title="Forget device"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Pillar 2: Discovered Devices */}
-      {discovered.length > 0 && (
-        <div className="card mb-6">
-          <h2 className="text-lg font-semibold mb-3">Discovered Devices</h2>
-
-          {/* Pending devices */}
-          {pendingDevices.length > 0 && (
-            <div className="mb-4">
-              <h3 className="text-sm font-medium text-yellow-300 mb-2">Pending Approval</h3>
-              <div className="space-y-2">
-                {pendingDevices.map((device) => (
-                  <DeviceRow
-                    key={device.id}
-                    device={device}
-                    onApprove={handleApprove}
-                    onDeny={handleDeny}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Approved devices */}
-          {approvedDevices.length > 0 && (
-            <div className="mb-4">
-              <h3 className="text-sm font-medium text-green-300 mb-2">Approved</h3>
-              <div className="space-y-2">
-                {approvedDevices.map((device) => (
-                  <DeviceRow
-                    key={device.id}
-                    device={device}
-                    onDeny={handleDeny}
-                    onReset={handleReset}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Denied devices (collapsible) */}
-          {deniedDevices.length > 0 && (
-            <div>
-              <button
-                onClick={() => setShowDenied(!showDenied)}
-                className="flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200 mb-2"
-              >
-                {showDenied ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                Show denied devices ({deniedDevices.length})
-              </button>
-              {showDenied && (
-                <div className="space-y-2">
-                  {deniedDevices.map((device) => (
-                    <DeviceRow key={device.id} device={device} onReset={handleReset} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Pillar 3: Protocol Allowlist */}
+      {/* Protocol Allowlist */}
       <div className="card mb-6">
         <button
           onClick={() => {
@@ -361,7 +325,7 @@ export default function Settings() {
         {showProtocols && (
           <div className="mt-3">
             <p className="text-sm text-slate-400 mb-3">
-              Only devices matching enabled protocols will appear during scanning.
+              Only devices matching enabled protocols will be recognized. Devices from disabled protocols are auto-blocked.
             </p>
             <div className="grid grid-cols-2 gap-2">
               {protocolList.map((proto) => (
@@ -390,90 +354,194 @@ export default function Settings() {
           PlayRooms {version ? `v${version}` : ""} — A Home Assistant add-on for Buttplug.io device management with shareable Play Rooms.
         </p>
       </div>
+
+      {/* Add Device Modal */}
+      <AddDeviceModal
+        open={showAddModal}
+        onClose={handleModalClose}
+        engineReady={engineStatus.running && engineStatus.clientConnected}
+      />
     </div>
   );
 }
 
-// --- Device Row Component ---
+// --- Managed Device Row (approved devices with settings) ---
 
-function DeviceRow({
+function ManagedDeviceRow({
   device,
-  onApprove,
-  onDeny,
-  onReset,
+  onRefresh,
 }: {
   device: DiscoveredDevice;
-  onApprove?: (id: string) => void;
-  onDeny?: (id: string) => void;
-  onReset?: (id: string) => void;
+  onRefresh: () => void;
 }) {
-  const statusIcon = {
-    approved: <CheckCircle className="w-4 h-4 text-green-400" />,
-    denied: <XCircle className="w-4 h-4 text-red-400" />,
-    pending: <Clock className="w-4 h-4 text-yellow-400" />,
-  }[device.status];
+  const [showSettings, setShowSettings] = useState(false);
+  const settings = device.globalSettings || { maxIntensity: 1.0, allowedCommands: [], displayName: null };
+  const maxPct = Math.round((settings.maxIntensity ?? 1.0) * 100);
+  const displayName = settings.displayName || device.name;
 
   return (
-    <div className="flex items-center justify-between bg-slate-700 rounded-lg px-4 py-3">
-      <div className="flex items-center gap-3 flex-1">
-        {statusIcon}
-        <div>
+    <div className="bg-slate-700/50 rounded-lg">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium">{device.name}</span>
+            <span className="font-medium text-sm truncate">{displayName}</span>
             {device.connected && (
-              <span className="text-xs bg-green-600/30 text-green-300 px-1.5 py-0.5 rounded">Connected</span>
+              <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
             )}
           </div>
-          <div className="flex gap-2 mt-1">
-            {device.capabilities.vibrate && (
-              <span className="text-xs bg-purple-600/30 text-purple-300 px-2 py-0.5 rounded">Vibrate</span>
-            )}
-            {device.capabilities.rotate && (
-              <span className="text-xs bg-blue-600/30 text-blue-300 px-2 py-0.5 rounded">Rotate</span>
-            )}
-            {device.capabilities.linear && (
-              <span className="text-xs bg-green-600/30 text-green-300 px-2 py-0.5 rounded">Linear</span>
-            )}
-            {device.capabilities.battery && (
-              <span className="text-xs bg-amber-600/30 text-amber-300 px-2 py-0.5 rounded">Battery</span>
+          <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+            {device.protocol && <span>{device.protocol}</span>}
+            {maxPct < 100 && <span className="text-amber-400">max {maxPct}%</span>}
+            {/* Show disabled commands */}
+            {settings.allowedCommands && settings.allowedCommands.length > 0 && settings.allowedCommands.length < 4 && (
+              <span className="flex items-center gap-1">
+                {settings.allowedCommands.includes("vibrate") && <Vibrate className="w-3 h-3" />}
+                {settings.allowedCommands.includes("rotate") && <RotateCw className="w-3 h-3" />}
+                {settings.allowedCommands.includes("linear") && <MoveVertical className="w-3 h-3" />}
+              </span>
             )}
           </div>
         </div>
+
+        {/* Capability badges */}
+        <div className="flex gap-1 flex-shrink-0">
+          {device.capabilities.vibrate && <Vibrate className="w-3.5 h-3.5 text-purple-400" />}
+          {device.capabilities.rotate && <RotateCw className="w-3.5 h-3.5 text-blue-400" />}
+          {device.capabilities.linear && <MoveVertical className="w-3.5 h-3.5 text-green-400" />}
+        </div>
+
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="text-slate-400 hover:text-white p-1 transition flex-shrink-0"
+          title="Device Settings"
+        >
+          <Settings2 className="w-4 h-4" />
+        </button>
       </div>
 
-      <div className="flex items-center gap-2 ml-3">
-        {device.status === "pending" && onApprove && (
-          <button
-            onClick={() => onApprove(device.approvalId)}
-            className="btn-primary text-xs px-3 py-1"
-          >
-            Approve
-          </button>
-        )}
-        {device.status === "pending" && onDeny && (
-          <button
-            onClick={() => onDeny(device.approvalId)}
-            className="btn-danger text-xs px-3 py-1"
-          >
-            Deny
-          </button>
-        )}
-        {device.status === "approved" && onDeny && (
-          <button
-            onClick={() => onDeny(device.approvalId)}
-            className="text-xs text-red-400 hover:text-red-300 px-2 py-1"
-          >
-            Revoke
-          </button>
-        )}
-        {device.status === "denied" && onReset && (
-          <button
-            onClick={() => onReset(device.approvalId)}
-            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 px-2 py-1"
-          >
-            <RotateCcw className="w-3 h-3" /> Reset
-          </button>
-        )}
+      {showSettings && (
+        <InlineDeviceSettings device={device} onRefresh={onRefresh} />
+      )}
+    </div>
+  );
+}
+
+function InlineDeviceSettings({
+  device,
+  onRefresh,
+}: {
+  device: DiscoveredDevice;
+  onRefresh: () => void;
+}) {
+  const settings = device.globalSettings || { maxIntensity: 1.0, allowedCommands: ["vibrate", "rotate", "linear", "stop"], displayName: null };
+  const [maxIntensity, setMaxIntensity] = useState(Math.round((settings.maxIntensity ?? 1.0) * 100));
+  const [displayName, setDisplayName] = useState(settings.displayName || "");
+  const [commands, setCommands] = useState<string[]>(
+    settings.allowedCommands ?? ["vibrate", "rotate", "linear", "stop"]
+  );
+  const [saving, setSaving] = useState(false);
+
+  async function save(update: Record<string, unknown>) {
+    setSaving(true);
+    try {
+      await devicesApi.updateSettings(device.id, update);
+      onRefresh();
+    } catch (err) {
+      console.error("Settings update failed:", err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function toggleCommand(cmd: string) {
+    if (cmd === "stop") return;
+    const updated = commands.includes(cmd)
+      ? commands.filter((c) => c !== cmd)
+      : [...commands, cmd];
+    setCommands(updated);
+    save({ allowedCommands: updated });
+  }
+
+  async function handleDeny() {
+    await devicesApi.deny(device.id);
+    onRefresh();
+  }
+
+  async function handleForget() {
+    await devicesApi.forget(device.id);
+    onRefresh();
+  }
+
+  return (
+    <div className="px-4 pb-3 pt-1 border-t border-slate-600 space-y-3">
+      <div>
+        <label className="text-xs text-slate-400 block mb-1">Display Name</label>
+        <input
+          type="text"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          onBlur={() => save({ displayName: displayName || null })}
+          placeholder={device.name}
+          className="w-full bg-slate-600 border border-slate-500 rounded px-2 py-1 text-sm"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs text-slate-400 block mb-1">Max Intensity: {maxIntensity}%</label>
+        <input
+          type="range"
+          min={5}
+          max={100}
+          step={5}
+          value={maxIntensity}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setMaxIntensity(v);
+            save({ maxIntensity: v / 100 });
+          }}
+          className="w-full accent-primary-500"
+          disabled={saving}
+        />
+      </div>
+
+      <div>
+        <label className="text-xs text-slate-400 block mb-1">Allowed Commands</label>
+        <div className="flex gap-2 flex-wrap">
+          {["vibrate", "rotate", "linear"].map((cmd) => (
+            <label
+              key={cmd}
+              className={`flex items-center gap-1 text-xs px-2 py-1 rounded cursor-pointer transition ${
+                commands.includes(cmd)
+                  ? "bg-primary-600/30 text-primary-300 border border-primary-500/50"
+                  : "bg-slate-600/50 text-slate-400 border border-slate-500/50"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={commands.includes(cmd)}
+                onChange={() => toggleCommand(cmd)}
+                className="sr-only"
+              />
+              {cmd === "vibrate" && <Vibrate className="w-3 h-3" />}
+              {cmd === "rotate" && <RotateCw className="w-3 h-3" />}
+              {cmd === "linear" && <MoveVertical className="w-3 h-3" />}
+              {cmd.charAt(0).toUpperCase() + cmd.slice(1)}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-2 pt-1">
+        <button onClick={handleDeny} className="btn-danger text-xs px-2 py-1 flex items-center gap-1">
+          <XCircle className="w-3 h-3" /> Block
+        </button>
+        <button
+          onClick={handleForget}
+          className="text-slate-500 hover:text-red-400 text-xs px-2 py-1 flex items-center gap-1 transition"
+        >
+          <X className="w-3 h-3" /> Remove
+        </button>
       </div>
     </div>
   );
