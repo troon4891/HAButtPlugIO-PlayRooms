@@ -1,6 +1,9 @@
 import type { Server } from "socket.io";
 import { config } from "../config.js";
+import { createLogger } from "../logger.js";
 import * as registry from "./instance-registry.js";
+
+const logger = createLogger("Portal");
 import * as guestBridge from "./guest-bridge.js";
 import * as tokenCache from "./token-cache.js";
 import type {
@@ -28,7 +31,7 @@ export function setupRelayNamespace(io: Server): void {
     }
 
     if (secret !== config.portalSecret) {
-      console.warn(`[Portal] Auth failed for instance ${instanceId}: invalid secret`);
+      logger.warn(`Auth failed for instance ${instanceId}: invalid secret`);
       return next(new Error("Authentication failed"));
     }
 
@@ -115,7 +118,7 @@ export function setupRelayNamespace(io: Server): void {
 
     // HA disconnect
     socket.on("disconnect", (reason) => {
-      console.log(`[Portal] HA instance disconnected: ${instanceId} (${reason})`);
+      logger.info(`HA instance disconnected: ${instanceId} (${reason})`);
       registry.unregisterInstance(instanceId);
 
       // Notify all guests for this instance
@@ -132,7 +135,7 @@ export function setupRelayNamespace(io: Server): void {
       setTimeout(() => {
         // Check if HA reconnected with the same instanceId
         if (!registry.getInstance(instanceId)) {
-          console.log(`[Portal] Grace period expired for instance ${instanceId}, disconnecting guests`);
+          logger.info(`Grace period expired for instance ${instanceId}, disconnecting guests`);
           const guests = guestBridge.getGuestsForInstance(instanceId);
           for (const guest of guests) {
             const guestSocket = guestBridge.getGuestSocket(guest.guestId);

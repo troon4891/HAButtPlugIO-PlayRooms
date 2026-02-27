@@ -2,6 +2,9 @@ import { cleanupExpiredShareLinks } from "./share-links.js";
 import { cleanupExpiredChallengeCodes } from "./lobby.js";
 import { cleanupInactiveGuests } from "./guest-profiles.js";
 import { cleanupRateLimiterState } from "./rate-limiter.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("DB");
 
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -15,14 +18,14 @@ function runCleanup(): void {
     cleanupRateLimiterState();
 
     if (expiredLinks > 0 || expiredCodes > 0 || expiredGuests > 0) {
-      console.log(
-        `[Cleanup] Removed: ${expiredLinks} expired share links, ` +
+      logger.info(
+        `Cleanup: removed ${expiredLinks} expired share links, ` +
         `${expiredCodes} expired challenge codes, ` +
         `${expiredGuests} inactive guest profiles`
       );
     }
   } catch (err) {
-    console.error("[Cleanup] Error during cleanup:", (err as Error).message);
+    logger.error("Error during cleanup:", (err as Error).message);
   }
 }
 

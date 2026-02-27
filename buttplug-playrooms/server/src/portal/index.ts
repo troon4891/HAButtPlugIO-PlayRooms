@@ -10,6 +10,9 @@ import { config } from "../config.js";
 import { setupRelayNamespace } from "./relay-namespace.js";
 import { setupGuestNamespace } from "./guest-namespace.js";
 import { portalRouter } from "./routes.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("Portal");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -24,10 +27,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * No Intiface Engine, no SQLite, no device control.
  */
 export async function startPortalServer(): Promise<void> {
-  console.log("[Portal] Starting PlayRoom Portal server...");
+  logger.info("Starting PlayRoom Portal server...");
 
   if (!config.portalSecret) {
-    console.error("[Portal] FATAL: PORTAL_SECRET / RELAY_SECRET is required in portal mode");
+    logger.error("FATAL: PORTAL_SECRET / RELAY_SECRET is required in portal mode");
     process.exit(1);
   }
 
@@ -80,19 +83,19 @@ export async function startPortalServer(): Promise<void> {
 
   // Start listening
   server.listen(config.serverPort, () => {
-    console.log(`[Portal] Portal server listening on port ${config.serverPort}`);
-    console.log(`[Portal] Waiting for HA instances to connect on /relay namespace...`);
+    logger.info(`Portal server listening on port ${config.serverPort}`);
+    logger.info("Waiting for HA instances to connect on /relay namespace...");
   });
 
   // Graceful shutdown
   process.on("SIGTERM", () => {
-    console.log("[Portal] Shutting down...");
+    logger.info("Shutting down...");
     server.close();
     process.exit(0);
   });
 
   process.on("SIGINT", () => {
-    console.log("[Portal] Interrupted, shutting down...");
+    logger.info("Interrupted, shutting down...");
     server.close();
     process.exit(0);
   });

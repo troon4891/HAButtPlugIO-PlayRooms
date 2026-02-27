@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from "uuid";
 import { eq, and } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import type { WebhookEvent } from "../types/index.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("API");
 
 export function createWebhook(
   roomId: string,
@@ -98,7 +101,7 @@ export function dispatchEvent(roomId: string, event: WebhookEvent, data: unknown
       body: payload,
       signal: AbortSignal.timeout(10000), // 10s timeout
     }).catch((err) => {
-      console.warn(`[Webhook ${hook.id}] Delivery failed to ${hook.url}: ${(err as Error).message}`);
+      logger.warn(`Webhook ${hook.id} delivery failed to ${hook.url}: ${(err as Error).message}`);
     });
   }
 }
@@ -126,7 +129,7 @@ export function testWebhook(id: string): boolean {
     body: payload,
     signal: AbortSignal.timeout(10000),
   }).catch((err) => {
-    console.warn(`[Webhook ${hook.id}] Test ping failed to ${hook.url}: ${(err as Error).message}`);
+    logger.warn(`Webhook ${hook.id} test ping failed to ${hook.url}: ${(err as Error).message}`);
   });
 
   return true;

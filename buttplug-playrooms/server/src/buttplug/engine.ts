@@ -2,6 +2,9 @@ import { spawn, ChildProcess } from "child_process";
 import { existsSync, readdirSync } from "fs";
 import { config } from "../config.js";
 import type { TransportConfig } from "../config.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("Engine");
 
 let engineProcess: ChildProcess | null = null;
 
@@ -12,10 +15,10 @@ let engineProcess: ChildProcess | null = null;
  * suppress a valid transport, so checks are conservative.
  */
 function checkTransportHardware(transports: TransportConfig): void {
-  console.log("[Engine] Transport configuration:");
-  console.log(`[Engine]   Bluetooth LE: ${transports.bluetooth ? "ENABLED" : "disabled"}`);
-  console.log(`[Engine]   Serial Port:  ${transports.serial ? "ENABLED" : "disabled"}`);
-  console.log(`[Engine]   USB HID:      ${transports.hid ? "ENABLED" : "disabled"}`);
+  logger.debug("Transport configuration:");
+  logger.debug(`  Bluetooth LE: ${transports.bluetooth ? "ENABLED" : "disabled"}`);
+  logger.debug(`  Serial Port:  ${transports.serial ? "ENABLED" : "disabled"}`);
+  logger.debug(`  USB HID:      ${transports.hid ? "ENABLED" : "disabled"}`);
 
   if (transports.bluetooth) {
     try {
@@ -23,24 +26,24 @@ function checkTransportHardware(transports: TransportConfig): void {
       if (existsSync(hciPath)) {
         const adapters = readdirSync(hciPath);
         if (adapters.length > 0) {
-          console.log(`[Engine]   Bluetooth hardware: Found adapter(s): ${adapters.join(", ")}`);
+          logger.debug(`  Bluetooth hardware: Found adapter(s): ${adapters.join(", ")}`);
         } else {
-          console.warn(
-            "[Engine] WARNING: Bluetooth LE is enabled but no Bluetooth adapter was detected " +
+          logger.warn(
+            "Bluetooth LE is enabled but no Bluetooth adapter was detected " +
             "(/sys/class/bluetooth/ is empty). Ensure the host has a Bluetooth adapter " +
             "and the add-on has host_dbus access."
           );
         }
       } else {
-        console.warn(
-          "[Engine] WARNING: Bluetooth LE is enabled but no Bluetooth adapter was detected " +
+        logger.warn(
+          "Bluetooth LE is enabled but no Bluetooth adapter was detected " +
           "(/sys/class/bluetooth not found). Ensure the host has a Bluetooth adapter " +
           "and the add-on has host_dbus access."
         );
       }
     } catch {
-      console.warn(
-        "[Engine] WARNING: Bluetooth LE is enabled but hardware check failed " +
+      logger.warn(
+        "Bluetooth LE is enabled but hardware check failed " +
         "(could not read /sys/class/bluetooth)."
       );
     }
@@ -53,19 +56,19 @@ function checkTransportHardware(transports: TransportConfig): void {
         (d) => d.startsWith("ttyUSB") || d.startsWith("ttyACM")
       );
       if (serialDevices.length > 0) {
-        console.log(
-          `[Engine]   Serial hardware: Found device(s): ${serialDevices.map((d) => "/dev/" + d).join(", ")}`
+        logger.debug(
+          `  Serial hardware: Found device(s): ${serialDevices.map((d) => "/dev/" + d).join(", ")}`
         );
       } else {
-        console.warn(
-          "[Engine] WARNING: Serial port transport is enabled but no serial devices were found " +
+        logger.warn(
+          "Serial port transport is enabled but no serial devices were found " +
           "(/dev/ttyUSB* or /dev/ttyACM*). Ensure a serial device is connected to the host " +
           "and the add-on has uart access."
         );
       }
     } catch {
-      console.warn(
-        "[Engine] WARNING: Serial port transport is enabled but hardware check failed " +
+      logger.warn(
+        "Serial port transport is enabled but hardware check failed " +
         "(could not enumerate /dev)."
       );
     }
@@ -76,19 +79,19 @@ function checkTransportHardware(transports: TransportConfig): void {
       const devEntries = readdirSync("/dev");
       const hidDevices = devEntries.filter((d) => d.startsWith("hidraw"));
       if (hidDevices.length > 0) {
-        console.log(
-          `[Engine]   HID hardware: Found device(s): ${hidDevices.map((d) => "/dev/" + d).join(", ")}`
+        logger.debug(
+          `  HID hardware: Found device(s): ${hidDevices.map((d) => "/dev/" + d).join(", ")}`
         );
       } else {
-        console.warn(
-          "[Engine] WARNING: USB HID transport is enabled but no HID devices were found " +
+        logger.warn(
+          "USB HID transport is enabled but no HID devices were found " +
           "(/dev/hidraw*). Ensure a USB HID device is connected to the host " +
           "and the add-on has usb access."
         );
       }
     } catch {
-      console.warn(
-        "[Engine] WARNING: USB HID transport is enabled but hardware check failed " +
+      logger.warn(
+        "USB HID transport is enabled but hardware check failed " +
         "(could not enumerate /dev)."
       );
     }
@@ -112,8 +115,8 @@ function buildEngineArgs(): string[] {
   const anyEnabled = bluetooth || serial || hid;
 
   if (!anyEnabled) {
-    console.warn(
-      "[Engine] WARNING: No transports are enabled. Device scanning will not find " +
+    logger.warn(
+      "No transports are enabled. Device scanning will not find " +
       "any hardware devices. Enable at least one transport (Bluetooth, Serial, or " +
       "USB HID) in the add-on configuration."
     );
@@ -151,29 +154,34 @@ export function startEngine(): Promise<void> {
 
     const args = buildEngineArgs();
 
-    console.log(`[Engine] Starting Intiface Engine on port ${config.intifacePort}`);
-    console.log(`[Engine] Arguments: ${args.join(" ")}`);
+    logger.info(`Starting Intiface Engine on port ${config.intifacePort}`);
+    logger.debug(`Arguments: ${args.join(" ")}`);
 
     engineProcess = spawn("intiface-engine", args, {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
     engineProcess.stdout?.on("data", (data: Buffer) => {
-      console.log(`[Engine] ${data.toString().trim()}`);
+      const line = data.toString().trim();
+      if (/error|ERROR/.test(line)) {
+        logger.error(line);
+      } else {
+        logger.debug(line);
+      }
     });
 
     engineProcess.stderr?.on("data", (data: Buffer) => {
-      console.error(`[Engine] ${data.toString().trim()}`);
+      logger.warn(data.toString().trim());
     });
 
     engineProcess.on("error", (err) => {
-      console.error("[Engine] Failed to start:", err.message);
+      logger.error("Failed to start:", err.message);
       engineProcess = null;
       reject(err);
     });
 
     engineProcess.on("exit", (code) => {
-      console.log(`[Engine] Exited with code ${code}`);
+      logger.info(`Exited with code ${code}`);
       engineProcess = null;
     });
 
@@ -190,19 +198,19 @@ export function startEngine(): Promise<void> {
 
 export function stopEngine(): void {
   if (engineProcess) {
-    console.log("[Engine] Stopping Intiface Engine");
+    logger.info("Stopping Intiface Engine");
     engineProcess.kill("SIGTERM");
     engineProcess = null;
   }
 }
 
 export async function restartEngine(): Promise<void> {
-  console.log("[Engine] Restarting Intiface Engine...");
+  logger.info("Restarting Intiface Engine...");
   stopEngine();
   // Wait for process to fully exit
   await new Promise((resolve) => setTimeout(resolve, 1500));
   await startEngine();
-  console.log("[Engine] Restart complete");
+  logger.info("Restart complete");
 }
 
 export function isEngineRunning(): boolean {

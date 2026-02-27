@@ -4,6 +4,9 @@ import { validateShareLink } from "./share-links.js";
 import { verifyToken, type TokenPayload } from "./tokens.js";
 import { validateApiKey as validateApiKeyService } from "./api-keys.js";
 import type { ApiKeyScope } from "../types/index.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("Auth");
 
 // Extend Express Request to carry auth info
 declare global {
@@ -41,6 +44,7 @@ export function requireHost(req: Request, res: Response, next: NextFunction): vo
       return;
     }
 
+    logger.warn(`Host auth failed (ha-ingress): no ingress header, IP=${req.ip}`);
     res.status(401).json({ error: "Host authentication required" });
     return;
   }
@@ -66,6 +70,7 @@ export function requireHost(req: Request, res: Response, next: NextFunction): vo
     }
   }
 
+  logger.warn(`Auth failed: no valid JWT or API key, IP=${req.ip}`);
   res.status(401).json({ error: "Authentication required" });
 }
 

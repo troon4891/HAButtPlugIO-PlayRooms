@@ -3,11 +3,15 @@ import { config } from "../config.js";
 import { matchesEnabledProtocol } from "./protocol-filter.js";
 import { getOrCreateDevice, isDeviceApproved, denyDevice, updateLastSeen, getDeviceByIdentifier } from "./device-approval.js";
 import type { DeviceState, DeviceCapabilities, DeviceCommand } from "../types/index.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("Device");
 
 let client: ButtplugClient | null = null;
 let deviceListeners: Array<(devices: DeviceState[]) => void> = [];
 let discoveredListeners: Array<() => void> = [];
 let scanTimer: ReturnType<typeof setTimeout> | null = null;
+let scanning = false;
 
 // Track all discovered devices with their buttplug index → identifier mapping
 const discoveredDeviceMap = new Map<number, { name: string; identifier: string }>();
@@ -106,9 +110,9 @@ export async function getDiscoveredDevices(): Promise<
   const records = await getAllDeviceRecords();
 
   return await Promise.all(records.map(async (record) => {
-    // Find the live buttplug device if connected
+    // Find the live buttplug device if connected (match by name directly)
     const liveDevice = client?.devices.find(
-      (d) => discoveredDeviceMap.get(d.index)?.identifier === record.identifier
+      (d) => d.name === record.identifier
     );
 
     // Determine protocol from device name
@@ -139,8 +143,8 @@ async function handleDeviceAdded(device: ButtplugClientDevice): Promise<void> {
   // Step 1: Protocol filter — is this device's brand/protocol allowed?
   const protocolResult = await matchesEnabledProtocol(device.name);
   if (!protocolResult.allowed) {
-    console.log(
-      `[Buttplug] Device "${device.name}" blocked by protocol filter (protocol: ${protocolResult.protocol})`
+    logger.info(
+      `Device "${device.name}" blocked by protocol filter (protocol: ${protocolResult.protocol})`
     );
     // Safety: stop the device in case engine auto-activated anything
     try { await device.stop(); } catch { /* ignore */ }
@@ -159,8 +163,8 @@ async function handleDeviceAdded(device: ButtplugClientDevice): Promise<void> {
   const record = await getOrCreateDevice(device.name, identifier);
   await updateLastSeen(record.id);
 
-  console.log(
-    `[Buttplug] Device discovered: "${device.name}" (status: ${record.status}, protocol: ${protocolResult.protocol})`
+  logger.info(
+    `Device discovered: "${device.name}" (status: ${record.status}, protocol: ${protocolResult.protocol})`
   );
 
   // Notify discovered listeners (for Settings UI refresh)
@@ -185,7 +189,7 @@ export async function connectClient(): Promise<void> {
 
   client.addListener("deviceadded", (device: ButtplugClientDevice) => {
     handleDeviceAdded(device).catch((err) =>
-      console.error("[Buttplug] Error handling device added:", err)
+      logger.error("Error handling device added:", err)
     );
   });
   client.addListener("deviceremoved", (device: ButtplugClientDevice) => {
@@ -198,9 +202,9 @@ export async function connectClient(): Promise<void> {
 
   try {
     await client.connect(connector);
-    console.log("[Buttplug] Connected to Intiface Engine");
+    logger.info("Connected to Intiface Engine");
   } catch (err) {
-    console.error("[Buttplug] Connection failed:", err);
+    logger.error("Connection failed:", err);
     client = null;
     throw err;
   }
@@ -209,39 +213,42 @@ export async function connectClient(): Promise<void> {
 export async function disconnectClient(): Promise<void> {
   if (client?.connected) {
     await client.disconnect();
-    console.log("[Buttplug] Disconnected");
+    logger.info("Disconnected");
   }
   client = null;
+  scanning = false;
   discoveredDeviceMap.clear();
 }
 
 export async function startScanning(): Promise<void> {
   if (!client?.connected) throw new Error("Buttplug client not connected");
   await client.startScanning();
-  console.log("[Buttplug] Scanning started");
+  scanning = true;
+  logger.info("Scanning started");
 
   // Server-side auto-stop after configured timeout
   if (scanTimer) clearTimeout(scanTimer);
   scanTimer = setTimeout(async () => {
-    scanTimer = null;
     try {
       await stopScanning();
-      console.log(`[Buttplug] Scan auto-stopped after ${config.scanTimeout}ms`);
+      logger.info(`Scan auto-stopped after ${config.scanTimeout}ms`);
     } catch (err) {
-      console.error("[Buttplug] Error auto-stopping scan:", err);
+      scanning = false;
+      logger.error("Error auto-stopping scan:", err);
     }
   }, config.scanTimeout);
 }
 
 export async function stopScanning(): Promise<void> {
   if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
-  if (!client?.connected) return;
+  if (!client?.connected) { scanning = false; return; }
   await client.stopScanning();
-  console.log("[Buttplug] Scanning stopped");
+  scanning = false;
+  logger.info("Scanning stopped");
 }
 
 export function isScanning(): boolean {
-  return scanTimer !== null;
+  return scanning;
 }
 
 export async function sendCommand(cmd: DeviceCommand): Promise<void> {

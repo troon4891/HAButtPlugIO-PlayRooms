@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-02-27 (UNTESTED)
+
+Bug fixes and structured logging overhaul. Fixes five bugs discovered during
+manual review, adds centralized logging with configurable log levels, and adds
+device-to-room assignment UI in Room Settings.
+
+**Status**: Code written, not yet tested.
+
+### Added
+- **Structured logging**: Centralized `createLogger(subsystem)` module with
+  `debug`, `info`, `warn`, `error` levels. All server `console.*` calls replaced
+  with timestamped, subsystem-tagged log lines (e.g.
+  `2026-02-27T12:00:00.000Z [INFO] [Engine] Starting...`).
+- **`log_level` config option**: Configurable via `config.yaml` or `LOG_LEVEL`
+  env var. Accepts `debug`, `info` (default), `warn`, `error`.
+- **Device assignment UI in Room Settings**: Checkbox list of approved devices
+  in the `RoomConfig` component. Host can assign/unassign devices per room
+  without navigating to the global Settings page.
+- **`POST /api/devices/:id/unassign`**: Removes a device from its assigned room.
+- **`GET /api/rooms/:id/devices`**: Returns devices assigned to a specific room.
+- **Client API**: `devices.unassign()` and `devices.listForRoom()` functions
+  added to `api.ts`.
+- **`RoomDevice` TypeScript interface** in client `api.ts`.
+
+### Changed
+- ToyBox empty-state message updated: "Assign devices in Room Settings" (was
+  "Assign devices in Settings").
+- Health endpoint version updated to `3.3.0`.
+- `config.yaml`: Version bumped to `3.3.0`, added `log_level` option.
+
+### Fixed
+- **Host chat history**: Host now receives recent chat history on connect (was
+  only sent to guests via `finalizeGuestJoin`).
+- **Device capabilities always empty**: `getDiscoveredDevices()` matched live
+  devices via `discoveredDeviceMap` lookup (stale after reconnect) instead of
+  matching by `device.name` directly. Capabilities now resolve correctly.
+- **Scan status stuck on "scanning"**: `isScanning()` relied solely on
+  `scanTimer !== null`, which could be cleared by the timeout callback before
+  `stopScanning()` finished. Added a dedicated `scanning` boolean, reset in
+  `stopScanning()`, `disconnectClient()`, and the timeout error path.
+- **Room delete without confirmation**: `handleDelete()` on the Dashboard now
+  shows a `window.confirm()` dialog before deleting a room.
+
+---
+
 ## [3.2.0] - 2026-02-26 (UNTESTED)
 
 Device management overhaul: "Add New Device" modal, global per-device settings

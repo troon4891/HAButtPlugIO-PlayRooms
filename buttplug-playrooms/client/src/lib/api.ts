@@ -50,6 +50,10 @@ export const devices = {
   stopScan: () => request<{ status: string }>("/devices/scan/stop", { method: "POST" }),
   assign: (id: string, roomId: string, settings?: Record<string, unknown>) =>
     request(`/devices/${id}/assign`, { method: "POST", body: JSON.stringify({ roomId, settings }) }),
+  unassign: (id: string) =>
+    request<{ status: string }>(`/devices/${id}/unassign`, { method: "POST" }),
+  listForRoom: (roomId: string) =>
+    request<RoomDevice[]>(`/rooms/${roomId}/devices`),
   // Device approval (Pillar 2)
   discovered: () => request<DiscoveredDevice[]>("/devices/discovered"),
   approve: (id: string) => request<{ status: string }>(`/devices/${id}/approve`, { method: "POST" }),
@@ -170,6 +174,23 @@ export interface DeviceGlobalSettings {
   maxIntensity: number;
   allowedCommands: string[];
   displayName: string | null;
+}
+
+export interface RoomDevice {
+  id: string;
+  buttplugIndex: number;
+  name: string;
+  roomId: string | null;
+  settings: Record<string, unknown>;
+  connected: boolean;
+  capabilities: {
+    vibrate: boolean;
+    rotate: boolean;
+    linear: boolean;
+    battery: boolean;
+  };
+  batteryLevel: number | null;
+  globalSettings?: DeviceGlobalSettings;
 }
 
 export interface ScanStatus {

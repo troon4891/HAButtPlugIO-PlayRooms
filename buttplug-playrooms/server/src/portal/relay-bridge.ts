@@ -1,6 +1,9 @@
 import type { Server } from "socket.io";
 import { config } from "../config.js";
+import { createLogger } from "../logger.js";
 import { validateShareLink } from "../auth/share-links.js";
+
+const logger = createLogger("Portal");
 import * as lobby from "../auth/lobby.js";
 import * as chatService from "../widgets/chat.service.js";
 import * as toyboxService from "../widgets/toybox.service.js";
@@ -54,7 +57,7 @@ export function setupRelayBridge(io: Server): void {
     }
   });
 
-  console.log("[Relay Bridge] Relay bridge initialized");
+  logger.info("Relay bridge initialized");
 }
 
 function handleGuestConnect(io: Server, data: RelayGuestConnect): void {
@@ -78,7 +81,7 @@ function handleGuestConnect(io: Server, data: RelayGuestConnect): void {
   // Track mapping between portal guest and HA guest
   portalGuests.set(portalGuestId, { roomId, name, haGuestId });
 
-  console.log(`[Relay Bridge] Portal guest "${name}" (${portalGuestId}) -> HA guest ${haGuestId}`);
+  logger.info(`Portal guest "${name}" (${portalGuestId}) -> HA guest ${haGuestId}`);
 
   // If open mode, auto-approve
   if (linkResult.room.accessMode === "open") {
@@ -114,7 +117,7 @@ function handleGuestDisconnect(io: Server, data: RelayGuestDisconnect): void {
   io.to(`room:${roomId}`).emit("guest:left", { guestId: mapping.haGuestId });
   dispatchEvent(roomId, "guest:left", { guestId: mapping.haGuestId, name: mapping.name });
 
-  console.log(`[Relay Bridge] Portal guest "${mapping.name}" (${portalGuestId}) disconnected`);
+  logger.info(`Portal guest "${mapping.name}" (${portalGuestId}) disconnected`);
 }
 
 function handleUpstreamEvent(io: Server, envelope: RelayUpstream): void {
@@ -324,7 +327,7 @@ export function handleReconnectedGuests(guests: Array<{ guestId: string; roomId:
       relayClient.emitGuestApproved(guest.guestId);
       sendRoomStateToPortalGuest(guest.guestId, guest.roomId);
     } catch (err) {
-      console.warn(`[Relay Bridge] Failed to re-register portal guest ${guest.guestId}:`, (err as Error).message);
+      logger.warn(`Failed to re-register portal guest ${guest.guestId}: ${(err as Error).message}`);
     }
   }
 }

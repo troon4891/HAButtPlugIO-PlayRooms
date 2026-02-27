@@ -3,6 +3,9 @@ import { eq, isNull } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import * as buttplugClient from "../buttplug/client.js";
 import type { DeviceCommand } from "../types/index.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("ToyBox");
 
 export async function listAllDevices() {
   return buttplugClient.getDeviceStates();
@@ -60,6 +63,7 @@ export async function assignDeviceToRoom(buttplugIndex: number, roomId: string, 
   };
 
   db.insert(schema.devices).values(newDevice).run();
+  logger.info(`Device "${device.name}" assigned to room ${roomId}`);
   return { ...newDevice, settings: settings ?? {} };
 }
 
@@ -68,9 +72,11 @@ export function unassignDevice(deviceId: string) {
     .set({ roomId: null })
     .where(eq(schema.devices.id, deviceId))
     .run();
+  logger.info(`Device ${deviceId} unassigned from room`);
 }
 
 export async function sendDeviceCommand(cmd: DeviceCommand): Promise<void> {
+  logger.debug(`Command: device=${cmd.deviceId} ${cmd.command} value=${cmd.value}`);
   await buttplugClient.sendCommand(cmd);
 }
 

@@ -1,6 +1,9 @@
 import { io as ioClient, type Socket as ClientSocket } from "socket.io-client";
 import type { Server } from "socket.io";
 import { config } from "../config.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("Portal");
 import type {
   RelayUpstream,
   RelayGuestConnect,
@@ -24,7 +27,7 @@ export async function connectToPortal(io: Server): Promise<void> {
 
   localIo = io;
 
-  console.log(`[Relay Client] Connecting to portal: ${config.portalUrl}`);
+  logger.info(`Relay client connecting to portal: ${config.portalUrl}`);
 
   relaySocket = ioClient(config.portalUrl, {
     path: "/relay",
@@ -40,7 +43,7 @@ export async function connectToPortal(io: Server): Promise<void> {
   });
 
   relaySocket.on("connect", () => {
-    console.log("[Relay Client] Connected to portal");
+    logger.info("Relay client connected to portal");
 
     // Announce HA status
     relaySocket!.emit("relay:ha:status", {
@@ -49,11 +52,11 @@ export async function connectToPortal(io: Server): Promise<void> {
   });
 
   relaySocket.on("disconnect", (reason) => {
-    console.warn(`[Relay Client] Disconnected from portal: ${reason}`);
+    logger.warn(`Relay client disconnected from portal: ${reason}`);
   });
 
   relaySocket.on("connect_error", (err) => {
-    console.warn(`[Relay Client] Connection error: ${err.message}`);
+    logger.warn(`Relay client connection error: ${err.message}`);
   });
 
   // Handle heartbeat
@@ -63,7 +66,7 @@ export async function connectToPortal(io: Server): Promise<void> {
 
   // Handle reconnection notification — portal tells us which guests are still connected
   relaySocket.on("relay:ha:reconnected", async (data: RelayHaReconnected) => {
-    console.log(`[Relay Client] Reconnected with ${data.guests.length} guests still on portal`);
+    logger.info(`Relay client reconnected with ${data.guests.length} guests still on portal`);
     // The relay bridge will handle re-registering these guests
     const relayBridge = await import("./relay-bridge.js");
     relayBridge.handleReconnectedGuests(data.guests);

@@ -51,6 +51,7 @@ export default function Dashboard() {
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm("Delete this room? This cannot be undone.")) return;
     try {
       await rooms.delete(id);
       setRoomList((prev) => prev.filter((r) => r.id !== id));

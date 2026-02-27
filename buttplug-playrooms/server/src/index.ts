@@ -1,4 +1,10 @@
 import { config } from "./config.js";
+import { setLevel, createLogger } from "./logger.js";
+
+setLevel(config.logLevel);
+
+const logger = createLogger("PlayRooms");
+const apiLogger = createLogger("API");
 
 // Portal mode: start the lightweight relay server instead
 if (config.portalMode) {
@@ -34,7 +40,7 @@ import { roomRouter } from "./rooms/room.routes.js";
 import { setupRoomSockets } from "./rooms/room.socket.js";
 import { requireHost } from "./auth/middleware.js";
 import { createShareLink, validateShareLink, revokeShareLink, getLinksForRoom } from "./auth/share-links.js";
-import { assignDeviceToRoom } from "./widgets/toybox.service.js";
+import { assignDeviceToRoom, unassignDevice, getDevicesForRoom } from "./widgets/toybox.service.js";
 import { authRouter } from "./auth/auth.routes.js";
 import { apiKeysRouter } from "./auth/api-keys.routes.js";
 import { webhookRouter } from "./webhooks/webhook.routes.js";
@@ -111,6 +117,7 @@ app.post("/api/engine/start", requireHost, async (_req, res) => {
     await connectClient();
     res.json({ status: "started" });
   } catch (err) {
+    apiLogger.error("Engine start failed:", (err as Error).message);
     res.status(500).json({ error: (err as Error).message });
   }
 });
@@ -121,6 +128,7 @@ app.post("/api/engine/stop", requireHost, async (_req, res) => {
     stopEngine();
     res.json({ status: "stopped" });
   } catch (err) {
+    apiLogger.error("Engine stop failed:", (err as Error).message);
     res.status(500).json({ error: (err as Error).message });
   }
 });
@@ -153,6 +161,7 @@ app.post("/api/devices/scan/start", requireHost, async (_req, res) => {
     await startScanning();
     res.json({ status: "scanning" });
   } catch (err) {
+    apiLogger.error("Scan start failed:", (err as Error).message);
     res.status(500).json({ error: (err as Error).message });
   }
 });
@@ -162,6 +171,7 @@ app.post("/api/devices/scan/stop", requireHost, async (_req, res) => {
     await stopScanning();
     res.json({ status: "stopped" });
   } catch (err) {
+    apiLogger.error("Scan stop failed:", (err as Error).message);
     res.status(500).json({ error: (err as Error).message });
   }
 });
@@ -176,6 +186,24 @@ app.post("/api/devices/:id/assign", requireHost, async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/devices/:id/unassign", requireHost, (req, res) => {
+  try {
+    unassignDevice(req.params.id);
+    res.json({ status: "unassigned" });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+app.get("/api/rooms/:id/devices", requireHost, async (req, res) => {
+  try {
+    const devices = await getDevicesForRoom(req.params.id);
+    res.json(devices);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
   }
 });
 
@@ -275,6 +303,7 @@ app.post("/api/engine/restart", requireHost, async (_req, res) => {
     await connectClient();
     res.json({ status: "restarted" });
   } catch (err) {
+    apiLogger.error("Engine restart failed:", (err as Error).message);
     res.status(500).json({ error: (err as Error).message });
   }
 });
@@ -366,7 +395,7 @@ app.get("/api/health", (_req, res) => {
     status: "ok",
     engine: isEngineRunning(),
     buttplug: isConnected(),
-    version: "3.2.0",
+    version: "3.3.0",
     transports: config.transports,
     authMode: config.authMode,
   };
@@ -408,8 +437,8 @@ setupRoomSockets(io);
 
 // --- Startup ---
 async function start(): Promise<void> {
-  console.log(`[PlayRooms] Auth mode: ${config.authMode}`);
-  console.log("[PlayRooms] Running database migrations...");
+  logger.info(`Auth mode: ${config.authMode}`);
+  logger.info("Running database migrations...");
   runMigrations();
 
   // Start periodic cleanup (expired tokens, challenge codes, inactive guests)
@@ -424,59 +453,59 @@ async function start(): Promise<void> {
   // Otherwise, the host starts the engine manually from Settings.
   if (config.scanOnStart) {
     let engineRunning = false;
-    console.log("[PlayRooms] scan_on_start enabled — starting Intiface Engine...");
+    logger.info("scan_on_start enabled — starting Intiface Engine...");
     try {
       await startEngine();
-      console.log("[PlayRooms] Intiface Engine started");
+      logger.info("Intiface Engine started");
       engineRunning = true;
     } catch (err) {
-      console.warn("[PlayRooms] Intiface Engine failed to start:", (err as Error).message);
-      console.warn("[PlayRooms] Continuing without device support...");
+      logger.warn("Intiface Engine failed to start:", (err as Error).message);
+      logger.warn("Continuing without device support...");
     }
 
     if (engineRunning) {
-      console.log("[PlayRooms] Connecting Buttplug client...");
+      logger.info("Connecting Buttplug client...");
       try {
         await connectClient();
-        console.log("[PlayRooms] Buttplug client connected");
+        logger.info("Buttplug client connected");
         await startScanning();
-        console.log("[PlayRooms] Auto-scan started");
+        logger.info("Auto-scan started");
       } catch (err) {
-        console.warn("[PlayRooms] Buttplug client connection failed:", (err as Error).message);
-        console.warn("[PlayRooms] Device features will be unavailable until connected");
+        logger.warn("Buttplug client connection failed:", (err as Error).message);
+        logger.warn("Device features will be unavailable until connected");
       }
     }
   } else {
-    console.log("[PlayRooms] Engine will start when host clicks 'Start Engine' in Settings");
+    logger.info("Engine will start when host clicks 'Start Engine' in Settings");
   }
 
   // Connect to portal relay if configured
   if (config.portalUrl && config.portalSecret) {
-    console.log(`[PlayRooms] Connecting to portal: ${config.portalUrl}`);
+    logger.info(`Connecting to portal: ${config.portalUrl}`);
     try {
       const relayClientModule = await import("./portal/relay-client.js");
       relayClientRef = relayClientModule;
       await relayClientModule.connectToPortal(io);
-      console.log("[PlayRooms] Portal relay connected");
+      logger.info("Portal relay connected");
 
       // Setup relay bridge to dispatch relay events to services
       const { setupRelayBridge } = await import("./portal/relay-bridge.js");
       setupRelayBridge(io);
-      console.log("[PlayRooms] Relay bridge initialized");
+      logger.info("Relay bridge initialized");
     } catch (err) {
-      console.warn("[PlayRooms] Portal connection failed:", (err as Error).message);
-      console.warn("[PlayRooms] Continuing without portal relay...");
+      logger.warn("Portal connection failed:", (err as Error).message);
+      logger.warn("Continuing without portal relay...");
     }
   }
 
   server.listen(config.serverPort, () => {
-    console.log(`[PlayRooms] Server listening on port ${config.serverPort}`);
+    logger.info(`Server listening on port ${config.serverPort}`);
   });
 }
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-  console.log("[PlayRooms] Shutting down...");
+  logger.info("Shutting down...");
   stopCleanupInterval();
   stopEngine();
   server.close();
@@ -484,7 +513,7 @@ process.on("SIGTERM", () => {
 });
 
 process.on("SIGINT", () => {
-  console.log("[PlayRooms] Interrupted, shutting down...");
+  logger.info("Interrupted, shutting down...");
   stopCleanupInterval();
   stopEngine();
   server.close();
@@ -492,6 +521,6 @@ process.on("SIGINT", () => {
 });
 
 start().catch((err) => {
-  console.error("[PlayRooms] Fatal startup error:", err);
+  logger.error("Fatal startup error:", err);
   process.exit(1);
 });

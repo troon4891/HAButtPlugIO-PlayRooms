@@ -2,6 +2,7 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
 import type { AuthMode } from "./types/index.js";
+import type { LogLevel } from "./logger.js";
 
 export interface TransportConfig {
   bluetooth: boolean;
@@ -21,6 +22,7 @@ interface AppConfig {
   jwtSecret: string;
   lockoutThreshold: number;
   lockoutDurationMs: number;
+  logLevel: LogLevel;
   corsOrigins: string; // comma-separated or "*"
   // Portal configuration
   portalMode: boolean;          // true = run as portal relay server
@@ -112,6 +114,7 @@ function loadConfig(): AppConfig {
     jwtSecret: portalMode ? "portal-mode" : getOrCreateJwtSecret(dataDir),
     lockoutThreshold: Number(process.env.LOCKOUT_THRESHOLD ?? 5),
     lockoutDurationMs: Number(process.env.LOCKOUT_DURATION_MS ?? 15 * 60 * 1000),
+    logLevel: ((haOptions.log_level as string) ?? process.env.LOG_LEVEL ?? "info") as LogLevel,
     corsOrigins: process.env.CORS_ORIGINS ?? (portalMode ? "*" : (authMode === "ha-ingress" ? "*" : "")),
     portalMode,
     portalUrl,

@@ -2,6 +2,9 @@ import { v4 as uuidv4 } from "uuid";
 import { eq, desc } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import type { ChatMessage } from "../types/index.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("Chat");
 
 const MAX_MESSAGES_PER_ROOM = 500;
 
@@ -15,6 +18,7 @@ export function saveMessage(roomId: string, senderName: string, message: string)
   };
 
   db.insert(schema.chatMessages).values(msg).run();
+  logger.debug(`[${roomId}] ${senderName}: ${message.slice(0, 50)}${message.length > 50 ? "..." : ""}`);
 
   return msg;
 }

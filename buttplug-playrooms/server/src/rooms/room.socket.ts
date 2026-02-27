@@ -9,6 +9,9 @@ import * as toyboxService from "../widgets/toybox.service.js";
 import * as mediaSignaling from "../widgets/media.signaling.js";
 import { onDevicesChanged } from "../buttplug/client.js";
 import { dispatchEvent } from "../webhooks/webhook.service.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("Room");
 
 type IOServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -100,7 +103,7 @@ async function handleHostConnection(io: IOServer, socket: IOSocket, roomId: stri
   socket.join(`room:${roomId}`);
   socket.join(`room:${roomId}:host`);
 
-  console.log(`[Room ${roomId}] Host connected`);
+  logger.info(`[${roomId}] Host connected`);
 
   // Send current room state
   const guests = lobby.getRoomGuests(roomId);
@@ -116,9 +119,16 @@ async function handleHostConnection(io: IOServer, socket: IOSocket, roomId: stri
     })),
   });
 
+  // Send recent chat history to host
+  const chatMessages = chatService.getRecentMessages(roomId, 50);
+  for (const msg of chatMessages) {
+    socket.emit("chat:message", msg);
+  }
+
   // Host lobby management
   socket.on("lobby:approve", (data) => {
     if (lobby.approveGuest(data.guestId)) {
+      logger.info(`[${roomId}] Guest approved: ${data.guestId}`);
       // Find the pending guest's socket and join them to the room
       const guestInfo = guestSockets.get(data.guestId);
       if (guestInfo) {
@@ -133,6 +143,7 @@ async function handleHostConnection(io: IOServer, socket: IOSocket, roomId: stri
   });
 
   socket.on("lobby:reject", (data) => {
+    logger.info(`[${roomId}] Guest rejected: ${data.guestId}`);
     lobby.rejectGuest(data.guestId);
     // Notify the guest they were rejected and disconnect them
     const guestInfo = guestSockets.get(data.guestId);
@@ -166,7 +177,7 @@ async function handleHostConnection(io: IOServer, socket: IOSocket, roomId: stri
   mediaSignaling.setupMediaSignaling(io, socket, roomId, "host");
 
   socket.on("disconnect", () => {
-    console.log(`[Room ${roomId}] Host disconnected`);
+    logger.info(`[${roomId}] Host disconnected`);
     hostSockets.delete(roomId);
     mediaSignaling.removeParticipant(roomId, "host");
   });
@@ -183,7 +194,7 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
   // Create pending guest
   const { guestId, code } = lobby.createPendingGuest(roomId, name, socket.id);
 
-  console.log(`[Room ${roomId}] Guest "${name}" (${guestId}) connecting`);
+  logger.info(`[${roomId}] Guest "${name}" (${guestId}) connecting`);
 
   // If open mode, auto-approve and join immediately
   if (linkResult.room.accessMode === "open") {
@@ -237,7 +248,7 @@ function handleGuestConnection(io: IOServer, socket: IOSocket, roomId: string, t
   });
 
   socket.on("disconnect", () => {
-    console.log(`[Room ${roomId}] Guest "${name}" (${guestId}) disconnected`);
+    logger.info(`[${roomId}] Guest "${name}" (${guestId}) disconnected`);
     lobby.markGuestDisconnected(socket.id);
     mediaSignaling.removeParticipant(roomId, guestId);
     guestSockets.delete(guestId);

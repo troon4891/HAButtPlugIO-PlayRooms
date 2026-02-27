@@ -27,7 +27,7 @@ export default function ToyBox({ devices, onCommand, isHost }: ToyBoxProps) {
 
       {devices.length === 0 ? (
         <p className="text-slate-400 text-sm">
-          {isHost ? "No devices assigned to this room. Assign devices in Settings." : "No devices available."}
+          {isHost ? "No devices assigned to this room. Assign devices in Room Settings." : "No devices available."}
         </p>
       ) : (
         <div className="space-y-4">

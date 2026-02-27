@@ -1,4 +1,7 @@
 import type { Socket } from "socket.io";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("Portal");
 
 interface InstanceInfo {
   instanceId: string;
@@ -22,7 +25,7 @@ export function registerInstance(instanceId: string, socket: Socket): void {
     connectedAt: Date.now(),
   });
   prefixIndex.set(prefix, instanceId);
-  console.log(`[Portal] HA instance registered: ${instanceId} (prefix: ${prefix})`);
+  logger.info(`HA instance registered: ${instanceId} (prefix: ${prefix})`);
 }
 
 export function unregisterInstance(instanceId: string): void {
@@ -30,7 +33,7 @@ export function unregisterInstance(instanceId: string): void {
   if (info) {
     prefixIndex.delete(info.prefix);
     instances.delete(instanceId);
-    console.log(`[Portal] HA instance unregistered: ${instanceId}`);
+    logger.info(`HA instance unregistered: ${instanceId}`);
   }
 }
 

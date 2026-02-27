@@ -1,6 +1,9 @@
 import { eq, and, lt } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db, schema } from "../db/index.js";
+import { createLogger } from "../logger.js";
+
+const logger = createLogger("Device");
 
 export type ApprovalStatus = "approved" | "denied" | "pending";
 
@@ -185,8 +188,8 @@ export async function cleanupStaleDevices(maxAgeDays: number): Promise<number> {
       .where(eq(schema.approvedDevices.id, row.id));
   }
 
-  console.log(
-    `[Devices] Auto-removed ${stale.length} stale blocked device(s) not seen in ${maxAgeDays} days`
+  logger.info(
+    `Auto-removed ${stale.length} stale blocked device(s) not seen in ${maxAgeDays} days`
   );
   return stale.length;
 }
