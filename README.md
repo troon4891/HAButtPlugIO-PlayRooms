@@ -1,3 +1,15 @@
+#
+>
+>
+>
+> PROJECT RETIRED
+> SEE SUCESSOR @ PlayRooms - [https://github.com/troon4891/PlayRooms]
+>
+>
+>
+
+---
+
 # ButtPlug.io PlayRooms
 
 A Buttplug.io (Intiface Engine) server that exposes connected devices through shareable Play Rooms. Runs as a Home Assistant add-on or standalone Docker container.
